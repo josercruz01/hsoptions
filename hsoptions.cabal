@@ -1,5 +1,5 @@
 name:                hsoptions
-version:             0.1.0
+version:             0.1.0.0
 cabal-version:       >= 1.18
 synopsis:            Command line flag parser for Haskell
 -- description:
