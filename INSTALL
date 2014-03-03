@@ -1,0 +1,12 @@
+Requirements:
+    -  Cabal: http://www.haskell.org/cabal/
+
+Installation steps:
+    1: configure:
+        ./util/configure_project.sh
+
+    2: build:
+        ./util/build
+
+    3: install
+        cabal install

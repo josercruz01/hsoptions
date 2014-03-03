@@ -1,0 +1,53 @@
+name:                hsoptions
+version:             0.1.0
+cabal-version:       >= 1.18
+synopsis:            Command line flag parser for Haskell
+-- description:
+homepage:            https://github.com/josercruz01/hsoptions
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Jose Raymundo Cruz
+maintainer:          jose.r.cruz01@gmail.com
+-- copyright:
+category:            System
+build-type:          Simple
+cabal-version:       >=1.8
+
+library
+  exposed-modules:
+    System.Console.HsOptions
+  -- other-modules:
+  build-depends:     base == 4.6.*,
+                     containers == 0.5.*
+  hs-source-dirs:    src
+  ghc-options:       -Wall
+
+test-suite unit-tests
+  type:              exitcode-stdio-1.0
+  hs-source-dirs:    tests/unit, src
+  main-is:           MainTestSuite.hs
+  ghc-options:       -Wall
+  other-modules:     UnitTestHelper
+  build-depends:     base == 4.6.*,
+                     hsoptions,
+                     containers == 0.5.*,
+                     HUnit >=1.2 && <2,
+                     QuickCheck >=2.4 && <=2.7,
+                     test-framework == 0.8.*,
+                     test-framework-hunit == 0.3.*,
+                     test-framework-quickcheck2 == 0.3.*
+
+-- Example programs
+executable SimpleFlag
+  main-is:           SimpleFlag.hs
+  hs-source-dirs:    doc/examples
+  ghc-options:       -Wall
+  build-depends:     base == 4.6.*,
+                     hsoptions
+
+executable RequiredFlag
+  main-is:           RequiredFlag.hs
+  hs-source-dirs:    doc/examples
+  ghc-options:       -Wall
+  build-depends:     base == 4.6.*,
+                     hsoptions

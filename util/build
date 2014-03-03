@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Verify hlint is installed on the system
+hash hlint 2>/dev/null || {
+    echo >&2 "-bash: hlint: command not found\ncheck how to install: http://community.haskell.org/~ndm/darcs/hlint/hlint.htm#installation";
+    exit 1;
+}
+
+hlint -c src tests
+cabal test
