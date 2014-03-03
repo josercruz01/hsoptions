@@ -2,7 +2,6 @@
 .cabal-sandbox/
 cabal.sandbox.config
 cabal-dev/
-dist/
 Cabal/dist/
 Cabal/tests/Setup
 cabal-install/dist/
@@ -30,3 +29,6 @@ Cabal/ghc.mk
 
 # TAGS files
 TAGS
+
+*.orig
+dist/
