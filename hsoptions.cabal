@@ -16,6 +16,7 @@ cabal-version:       >=1.8
 library
   exposed-modules:
     System.Console.HsOptions
+    System.Console.HsOptions.Parser
   -- other-modules:
   build-depends:     base == 4.6.*,
                      containers == 0.5.*
