@@ -14,7 +14,7 @@ These are the tools required to build the library from source:
 How to build
 ----
 ```
-git clone [git-repo-url] hsoptions
+git clone git@github.com:josercruz01/hsoptions.git hsoptions
 cd hsoptions
 ./build
 ```
