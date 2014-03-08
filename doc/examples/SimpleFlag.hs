@@ -12,16 +12,17 @@ flagData = flagToData userIdFlag
 {- Function to be executed if there was any errors parsing the flags -}
 main_errors :: [FlagError] -> IO ()
 main_errors errors = do
-    let errorMessages = [er | FlagError er <- errors]
+    let errorMessages = [er | FlagNonFatalError er <- errors]
+    let errorMessages' = [er | FlagFatalError er <- errors]
     putStrLn "Error while running the program:"
-    mapM_ putStrLn errorMessages
+    mapM_ putStrLn (errorMessages ++ errorMessages')
     putStrLn ""
 
 {- Function to be executed if there was no errors parsing the flags -}
 main_success :: ProcessResults -> IO ()
 main_success (flagResults, _argsResults) = do
     let userId = get flagResults userIdFlag
-    putStrLn $ "Main.hs: User id: " ++ show (userId)
+    putStrLn $ "Main.hs: User id: " ++ show userId
     putStrLn ""
 
 main :: IO ()
