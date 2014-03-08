@@ -27,7 +27,8 @@ test-suite unit-tests
   hs-source-dirs:    tests/unit, src
   main-is:           MainTestSuite.hs
   ghc-options:       -Wall
-  other-modules:     UnitTestHelper
+  other-modules:     UnitTestHelper, 
+                     System.Console.HsOptionsTestHelpers 
   build-depends:     base == 4.6.*,
                      hsoptions,
                      containers == 0.5.*,

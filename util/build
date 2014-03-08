@@ -1,4 +1,4 @@
 #!/bin/sh
 
-hlint2 -c src tests
+hlint -c src tests
 cabal test
