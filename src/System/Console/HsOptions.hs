@@ -3,9 +3,11 @@ module System.Console.HsOptions(
     get,
     intFlag,
     stringFlag,
+    boolFlag,
     flagToData,
     combine,
     process,
+    showHelp,
     Flag(..),
     FlagData,
     FlagError(..),
@@ -133,9 +135,22 @@ validateGlobal _ _ = []
 make :: (String, String, String -> Maybe a) -> Flag a
 make (name, help, parser) = Flag name help parser
 
+showHelp :: String -> FlagData -> IO ()
+showHelp desc flagData = do 
+  putStrLn desc
+  putStrLn ""
+  putStrLn "Usage:"
+  putStrLn ""
+  let flags = Map.toList flagData
+  mapM_ aux flags
+  where aux (name, (help, _)) = putStrLn $ name ++ ":\t\t" ++ help
+
 {- Flag parsers -}
 intFlag :: String -> Maybe Int
 intFlag = readMaybe
 
 stringFlag :: String -> Maybe String
 stringFlag = Just
+
+boolFlag :: String -> Maybe Bool
+boolFlag = readMaybe

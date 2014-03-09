@@ -5,8 +5,16 @@ import System.Environment
 userIdFlag :: Flag Int
 userIdFlag = make ("user_id", "the user id of the app", intFlag)
 
+helpFlag :: Flag Bool
+helpFlag = make ("help", "show this help", boolFlag)
+
+description :: String
+description = "Simple Haskell program\n" ++
+              "Just prints a simple message based on the input flags"
+
 flagData :: FlagData
-flagData = flagToData userIdFlag
+flagData = combine [flagToData userIdFlag,
+                    flagToData helpFlag]
 {- End Flag definitions -}
 
 {- Function to be executed if there was any errors parsing the flags -}
@@ -20,10 +28,11 @@ main_errors errors = do
 
 {- Function to be executed if there was no errors parsing the flags -}
 main_success :: ProcessResults -> IO ()
-main_success (flagResults, _argsResults) = do
-    let userId = get flagResults userIdFlag
-    putStrLn $ "Main.hs: User id: " ++ show userId
-    putStrLn ""
+main_success (flagResults, _argsResults) = if get flagResults helpFlag
+  then showHelp description flagData 
+  else do let userId = get flagResults userIdFlag
+          putStrLn $ "Main.hs: User id: " ++ show userId
+          putStrLn ""
 
 main :: IO ()
 main = do

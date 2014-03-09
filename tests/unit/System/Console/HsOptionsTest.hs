@@ -10,7 +10,7 @@ tests = [
     testInvalidFlagError,
     testFlagWithNoNameError,
     testFlagWithNoNameError2,
-    -- testMissingFlagError,
+  --  testMissingFlagError,
     testFlagNotDefined
   ]
 
