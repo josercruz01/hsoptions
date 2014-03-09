@@ -49,7 +49,8 @@ noErrors :: [FlagError]
 noErrors = []
 
 areDigits :: String -> Bool
-areDigits = all isDigit
+areDigits "" = False
+areDigits s = all isDigit s
 
 get ::  FlagResults -> Flag a ->  a
 get result (Flag name _ parser) = fromJust $ parser argValue

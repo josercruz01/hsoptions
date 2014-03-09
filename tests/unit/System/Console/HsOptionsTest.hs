@@ -7,7 +7,11 @@ import System.Console.HsOptionsTestHelpers
 tests :: [UnitTest]
 tests = [
     testValidFlag,
-    testMissingFlagError
+    testInvalidFlagError,
+    testFlagWithNoNameError,
+    testFlagWithNoNameError2,
+    -- testMissingFlagError,
+    testFlagNotDefined
   ]
 
 {- Flags -}
@@ -23,12 +27,39 @@ testValidFlag :: UnitTest
 testValidFlag  = "Valid flag should be parsed correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123"
-     assertFlagValueEquals pr userId 1233
-
+     assertFlagValueEquals pr userId 123
 
 testMissingFlagError :: UnitTest
-testMissingFlagError = "Invalid flag type should report error" `unitTest`
+testMissingFlagError  = "Missing flag should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d userName]
+         pr = process flagData "--user_id 123"
+     assertNonFatalError pr "Not yet implemented. This test should fail"
+     assertSingleError pr
+
+testInvalidFlagError :: UnitTest
+testInvalidFlagError = "Invalid flag type should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123abc"
      assertNonFatalError pr "Value '123abc' for flag '--user_id' is invalid"
+     assertSingleError pr
+
+testFlagWithNoNameError :: UnitTest
+testFlagWithNoNameError = "A flag with two dash but no identifier should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 123 --"
+     assertNonFatalError pr "Incorrect systax. Found '--' or '-' with no name afterwards"
+     assertSingleError pr
+
+testFlagWithNoNameError2 :: UnitTest
+testFlagWithNoNameError2 = "A flag with single dash but no identifier should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "- --user_id 123"
+     assertNonFatalError pr "Incorrect systax. Found '--' or '-' with no name afterwards"
+     assertSingleError pr
+
+testFlagNotDefined :: UnitTest
+testFlagNotDefined = "A passed in flag not defined in the code should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 123 --user_name bender"
+     assertNonFatalError pr "Passed in flag '--user_name' was not defined in the code"
      assertSingleError pr
