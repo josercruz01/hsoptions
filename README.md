@@ -14,7 +14,7 @@ These are the tools required to build the library from source:
 How to build
 ----
 ```
-git clone [git-repo-url] hsoptions
+git clone git@github.com:josercruz01/hsoptions.git hsoptions
 cd hsoptions
 ./build
 ```
@@ -25,4 +25,4 @@ Examples will can be found in [./doc/examples]
 
 
 [Cabal build system]:http://www.haskell.org/cabal/download.html
-[./doc/examples]:http://github.com/
+[./doc/examples]:https://github.com/josercruz01/hsoptions/tree/master/doc/examples
