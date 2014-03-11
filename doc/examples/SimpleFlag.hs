@@ -3,10 +3,13 @@ import System.Environment
 
 {- Begin Flag definitions -}
 userIdFlag :: Flag Int
-userIdFlag = make ("user_id", "the user id of the app", intFlag)
+userIdFlag = make ("user_id", "the user id of the app", required intFlag)
+
+userNameFlag :: Flag (Maybe String)
+userNameFlag = make ("user_name", "the user name of the app", optional stringFlag)
 
 helpFlag :: Flag Bool
-helpFlag = make ("help", "show this help", boolFlag)
+helpFlag = make ("help", "show this help", required boolFlag)
 
 description :: String
 description = "Simple Haskell program\n" ++
@@ -14,6 +17,7 @@ description = "Simple Haskell program\n" ++
 
 flagData :: FlagData
 flagData = combine [flagToData userIdFlag,
+                    flagToData userNameFlag,
                     flagToData helpFlag]
 {- End Flag definitions -}
 
@@ -32,6 +36,9 @@ main_success (flagResults, _argsResults) = if get flagResults helpFlag
   then showHelp description flagData 
   else do let userId = get flagResults userIdFlag
           putStrLn $ "Main.hs: User id: " ++ show userId
+          case (get flagResults userNameFlag) of
+            Nothing -> return ()
+            Just name -> putStrLn $ "User name: " ++ name
           putStrLn ""
 
 main :: IO ()

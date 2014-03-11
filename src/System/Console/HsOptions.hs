@@ -8,6 +8,8 @@ module System.Console.HsOptions(
     combine,
     process,
     showHelp,
+    required,
+    optional,
     Flag(..),
     FlagData,
     FlagError(..),
@@ -21,9 +23,9 @@ import Data.Maybe
 import Text.Read(readMaybe)
 import qualified Data.Map as Map
 
-data Flag a = Flag String String (String -> Maybe a)
+data Flag a = Flag String String (Maybe String -> Either FlagError a)
 data FlagError = FlagNonFatalError String | FlagFatalError String deriving (Show)
-type FlagDataAtom = (String, String -> Bool)
+type FlagDataAtom = (String, Maybe String -> Maybe FlagError)
 type FlagData = Map.Map String FlagDataAtom
 
 
@@ -54,10 +56,13 @@ areDigits :: String -> Bool
 areDigits "" = False
 areDigits s = all isDigit s
 
+takeRight :: Either a b -> b
+takeRight (Right b) = b
+takeRight _ = error "Error trying to takeRight of a Left"
+
 get ::  FlagResults -> Flag a ->  a
-get result (Flag name _ parser) = fromJust $ parser argValue
-    where argValue :: String
-          argValue = fromJust $ Map.lookup name result
+get result (Flag name _ parser) = takeRight $ parser argValue
+    where argValue = Map.lookup name result
 
 combine :: [FlagData] -> FlagData
 combine = foldl Map.union Map.empty
@@ -66,7 +71,12 @@ combineProcessResults :: (ProcessResults, ProcessResults) -> ProcessResults
 combineProcessResults ((pr1, args1), (pr2, args2)) = ( pr1 `Map.union` pr2, args1 ++ args2)
 
 flagToData :: Flag a -> FlagData
-flagToData (Flag name help parser) = Map.fromList [(name, (help, isJust . parser))]
+flagToData (Flag name help parser) = Map.fromList [(name, (help, hasAnyError parser))]
+
+hasAnyError :: (Maybe String -> Either FlagError a) -> Maybe String -> Maybe FlagError
+hasAnyError parser s = case parser s of
+  Left err -> Just err
+  _ -> Nothing
 
 isFlagName :: String -> Bool
 isFlagName name 
@@ -95,12 +105,11 @@ processFlag flagData name (arg2:args)
       ([FlagNonFatalError ("Passed in flag '--" ++ name ++"' was not defined in the code")],
        emptyProcessResults,
        args)
-    Just (_, isParseable) -> 
-      if not . isParseable $ arg2
-        then ([FlagNonFatalError ("Value '" ++ arg2 ++"' for flag '--" ++ name ++"' is invalid")],
-              emptyProcessResults,
-              args) 
-        else ([], mkProcessResults (mkFlagResults flagData name arg2) [], args)
+    Just (_, validator) -> case validator (Just arg2) of
+      Nothing -> ([], mkProcessResults (mkFlagResults flagData name arg2) [], args)
+      Just err -> ([prependError ("Error with flag '--" ++name ++ "': ") err],
+                   emptyProcessResults,
+                   args)
 
 processArg :: FlagData -> String -> [String] -> ([FlagError], ProcessResults, [String])
 processArg flagData arg args = 
@@ -130,9 +139,15 @@ process flagData args = case processAux flagData args ([], emptyProcessResults) 
     (errs,_) -> Left errs
 
 validateGlobal :: FlagData -> ProcessResults -> [FlagError]
-validateGlobal _ _ = []
+validateGlobal flagData (flagResults, _) = missingFlagErrors
+  where missingFlagErrors = mapMaybe checkMissingFlag (Map.toList flagData)
+        checkMissingFlag :: (String, FlagDataAtom) -> Maybe FlagError
+        checkMissingFlag (name, (_, validator)) = case validator value of
+          Nothing -> Nothing
+          Just er -> Just $ prependError ("Error with flag '--" ++name ++ "': ") er
+          where value = Map.lookup name flagResults
 
-make :: (String, String, String -> Maybe a) -> Flag a
+make :: (String, String, Maybe String -> Either FlagError a) -> Flag a
 make (name, help, parser) = Flag name help parser
 
 showHelp :: String -> FlagData -> IO ()
@@ -145,12 +160,32 @@ showHelp desc flagData = do
   mapM_ aux flags
   where aux (name, (help, _)) = putStrLn $ name ++ ":\t\t" ++ help
 
+mkError :: String -> Either FlagError b
+mkError s = Left $ FlagNonFatalError s
+
+prependError :: String -> FlagError -> FlagError
+prependError msg (FlagNonFatalError err) = FlagNonFatalError (msg ++ err)
+prependError msg (FlagFatalError err) = FlagFatalError (msg ++ err)
+
+required :: (String -> Maybe a) -> Maybe String -> Either FlagError a
+required _parser Nothing = mkError "Flag is required"
+required parser (Just s) = case parser s of 
+  Nothing -> mkError $ "Value '" ++ s ++ "' is not valid"
+  Just val -> Right val
+
+optional :: (String -> Maybe a) -> Maybe String -> Either FlagError (Maybe a)
+optional _parser Nothing = Right Nothing
+optional parser (Just s) = case parser s of 
+  Nothing -> mkError $ "Value '" ++ s ++ "' is not valid"
+  val -> Right val
+
 {- Flag parsers -}
 intFlag :: String -> Maybe Int
-intFlag = readMaybe
+intFlag = readMaybe 
 
 stringFlag :: String -> Maybe String
-stringFlag = Just
+stringFlag = Just 
 
 boolFlag :: String -> Maybe Bool
 boolFlag = readMaybe
+

@@ -10,16 +10,16 @@ tests = [
     testInvalidFlagError,
     testFlagWithNoNameError,
     testFlagWithNoNameError2,
-  --  testMissingFlagError,
+    testMissingFlagError,
     testFlagNotDefined
   ]
 
 {- Flags -}
 userId :: HSO.Flag Int
-userId = HSO.make ("user_id", "user_id_help", HSO.intFlag)
+userId = HSO.make ("user_id", "user_id_help", HSO.required HSO.intFlag)
 
 userName :: HSO.Flag String
-userName = HSO.make ("user_name", "user_name_help", HSO.stringFlag)
+userName = HSO.make ("user_name", "user_name_help", HSO.required HSO.stringFlag)
 
 {- Test methods -}
 
@@ -33,14 +33,14 @@ testMissingFlagError :: UnitTest
 testMissingFlagError  = "Missing flag should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d userName]
          pr = process flagData "--user_id 123"
-     assertNonFatalError pr "Not yet implemented. This test should fail"
+     assertNonFatalError pr "Error with flag '--user_name': Flag is required"
      assertSingleError pr
 
 testInvalidFlagError :: UnitTest
 testInvalidFlagError = "Invalid flag type should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123abc"
-     assertNonFatalError pr "Value '123abc' for flag '--user_id' is invalid"
+     assertNonFatalError pr "Error with flag '--user_id': Value '123abc' is not valid"
      assertSingleError pr
 
 testFlagWithNoNameError :: UnitTest
