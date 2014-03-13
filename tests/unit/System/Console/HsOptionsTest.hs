@@ -11,6 +11,7 @@ tests = [
     testFlagWithNoNameError,
     testFlagWithNoNameError2,
     testNegativeNumbers,
+    testNegativeDecimals,
     testMissingFlagError,
     testFlagNotDefined
   ]
@@ -64,6 +65,13 @@ testNegativeNumbers = "A negative number should not be treated as a flag" `unitT
          pr = process flagData "--user_id 123 -128"
      assertFlagValueEquals pr userId 123
      assertArgsEquals pr ["-128"]
+
+testNegativeDecimals :: UnitTest
+testNegativeDecimals = "A negative decimal number should not be treated as a flag" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 123 -128.18"
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["-128.18"]
 
 testFlagNotDefined :: UnitTest
 testFlagNotDefined = "A passed in flag not defined in the code should report error" `unitTest`

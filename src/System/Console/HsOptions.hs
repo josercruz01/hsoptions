@@ -18,7 +18,6 @@ module System.Console.HsOptions(
     ArgsResults
 ) where
 
-import Data.Char
 import Data.List
 import Data.Maybe
 import Text.Read(readMaybe)
@@ -42,9 +41,18 @@ emptyFlagResults = Map.empty
 emptyArgsResults :: [String]
 emptyArgsResults = []
 
-areDigits :: String -> Bool
-areDigits "" = False
-areDigits s = all isDigit s
+isInteger :: String -> Bool
+isInteger s = case reads s :: [(Integer, String)] of
+                [(_, "")] -> True
+                _         -> False
+
+isDouble :: String -> Bool
+isDouble s = case reads s :: [(Double, String)] of
+                [(_, "")] -> True
+                _         -> False
+
+isNumeric :: String -> Bool
+isNumeric s = isInteger s || isDouble s
 
 takeRight :: Either a b -> b
 takeRight (Right b) = b
@@ -72,7 +80,7 @@ isFlagName "-" = False
 isFlagName "--" = False
 isFlagName name 
   | take 2 name == "--" = True
-  | take 1 name == "-" && (not . areDigits) (drop 1 name) = True
+  | take 1 name == "-" && (not . isNumeric) (drop 1 name) = True
   | otherwise = False
 
 getFlagName :: String -> String
