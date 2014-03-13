@@ -10,6 +10,7 @@ tests = [
     testInvalidFlagError,
     testFlagWithNoNameError,
     testFlagWithNoNameError2,
+    testNegativeNumbers,
     testMissingFlagError,
     testFlagNotDefined
   ]
@@ -44,22 +45,29 @@ testInvalidFlagError = "Invalid flag type should report error" `unitTest`
      assertSingleError pr
 
 testFlagWithNoNameError :: UnitTest
-testFlagWithNoNameError = "A flag with two dash but no identifier should report error" `unitTest`
+testFlagWithNoNameError = "Two dashes with no name should be considered an argument" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123 --"
-     assertNonFatalError pr "Incorrect systax. Found '--' or '-' with no name afterwards"
-     assertSingleError pr
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["--"]
 
 testFlagWithNoNameError2 :: UnitTest
-testFlagWithNoNameError2 = "A flag with single dash but no identifier should report error" `unitTest`
+testFlagWithNoNameError2 = "Single dash with no name should be considered an argument" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "- --user_id 123"
-     assertNonFatalError pr "Incorrect systax. Found '--' or '-' with no name afterwards"
-     assertSingleError pr
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["-"]
+
+testNegativeNumbers :: UnitTest
+testNegativeNumbers = "A negative number should not be treated as a flag" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 123 -128"
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["-128"]
 
 testFlagNotDefined :: UnitTest
 testFlagNotDefined = "A passed in flag not defined in the code should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123 --user_name bender"
-     assertNonFatalError pr "Passed in flag '--user_name' was not defined in the code"
+     assertNonFatalError pr "Error with flag --user_name: Unkown flag is not defined in the code"
      assertSingleError pr

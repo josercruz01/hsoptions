@@ -45,8 +45,16 @@ assertFlagValueEquals (TestProcessError errs) _flag _value =
                 "** errors that where found:\n" ++ 
                 errorsToString errs)
 
-assertFlagValueEquals (TestProcessSuccess (results, _)) flag expected = assertEqual "" value expected
+assertFlagValueEquals (TestProcessSuccess (results, _args)) flag expected = assertEqual "" value expected
   where value = HSO.get results flag
+
+assertArgsEquals :: TestProcessResult -> [String] -> Assertion
+assertArgsEquals (TestProcessError errs) _args = 
+  assertFailure ("assertFlagValueEquals failed. expected no errors when getting args value" ++
+                " but errors found:\n" ++
+                "** errors that where found:\n" ++ 
+                errorsToString errs)
+assertArgsEquals (TestProcessSuccess (_results, args)) expected = assertEqual "" args expected
 
 process :: HSO.FlagData -> String -> TestProcessResult
 process fd input = case HSO.process fd args of
