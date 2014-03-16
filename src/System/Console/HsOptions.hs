@@ -8,14 +8,15 @@ module System.Console.HsOptions(
     combine,
     process,
     showHelp,
-    required,
-    optional,
+    flagOptional,
+    maybeFlag,
     Flag(..),
     FlagData,
     FlagError(..),
     FlagResults,
     ProcessResults,
-    ArgsResults
+    ArgsResults,
+    FlagConstraint(..)
 ) where
 
 import Data.List
@@ -23,17 +24,22 @@ import Data.Maybe
 import Text.Read(readMaybe)
 import qualified Data.Map as Map
 
-data Flag a = Flag String String (FlagArgument -> Either FlagError a)
+data Flag a = Flag String String (String -> Maybe a)
 data FlagError = FlagNonFatalError String | FlagFatalError String deriving (Show)
-type FlagData = Map.Map String FlagDataAtom
-type FlagDataAtom = (String, FlagArgument -> Maybe FlagError)
-type FlagResults = Map.Map String FlagArgument
+type FlagData = (Map.Map String FlagDataAtom, [FlagConstraint])
+type FlagDataAtom = (String, String -> Bool)
+type FlagResults = (Map.Map String FlagArgument)
+type FlagLookup = (FlagResults, [FlagConstraint])
 type ArgsResults = [String]
-type ProcessResults  = (FlagResults, ArgsResults)
+type ParseResults  = (FlagResults, ArgsResults)
+type ProcessResults  = (FlagLookup, ArgsResults)
 type PipelineFunction = (FlagData -> FlagResults -> ([FlagError], FlagResults))
 data FlagArgument = FlagMissing String 
                   | FlagValueMissing String
                   | FlagValue String String
+
+
+data FlagConstraint = FlagOptional String deriving (Show)
 
 emptyFlagResults :: Map.Map String FlagArgument
 emptyFlagResults = Map.empty
@@ -58,22 +64,22 @@ takeRight :: Either a b -> b
 takeRight (Right b) = b
 takeRight _ = error "Error trying to takeRight of a Left"
 
-get :: FlagResults -> Flag a ->  a
-get result (Flag name _ parser) = takeRight $ parser argValue
+get :: FlagLookup -> Flag a ->  a
+get (result, constraints) (Flag name _ parser) = fromJust $ takeRight (case r of 
+                                                          Left err -> error $ "Error is: " ++ show err
+                                                          Right r -> Right r)
     where argValue = fromMaybe (error ("Error while trying to get flag value for '" ++ name ++ "'." ++
-                                      " Perhaps this flag was not added to the flagData array"))
+                                       " Perhaps this flag was not added to the flagData array"))
                                (Map.lookup name result )
 
-combine :: [FlagData] -> FlagData
-combine = foldl Map.union Map.empty
+          r = required parser constraints argValue
+
+combine :: [FlagData] -> [FlagConstraint] -> FlagData
+combine fd constraints = foldl merge (Map.empty, constraints) fd
+  where merge (fd1, const1) (fd2, const2) = (fd1 `Map.union` fd2, const1 ++ const2) 
 
 flagToData :: Flag a -> FlagData
-flagToData (Flag name help parser) = Map.fromList [(name, (help, hasAnyError parser))]
-
-hasAnyError :: (FlagArgument -> Either FlagError a) -> FlagArgument -> Maybe FlagError
-hasAnyError parser s = case parser s of
-  Left err -> Just err
-  _ -> Nothing
+flagToData (Flag name help parser) = (Map.fromList [(name, (help, isJust . parser))], [])
 
 isFlagName :: String -> Bool
 isFlagName "-" = False
@@ -88,22 +94,22 @@ getFlagName name
   | take 2 name == "--" = drop 2 name
   | otherwise = drop 1 name
 
-makeFlagResults :: (String, FlagArgument) -> ProcessResults 
+makeFlagResults :: (String, FlagArgument) -> ParseResults 
 makeFlagResults flagArg = (Map.fromList [flagArg], emptyArgsResults)
 
-processFlag ::  String -> [String] -> (ProcessResults, [String])
+processFlag ::  String -> [String] -> (ParseResults, [String])
 processFlag name [] = (makeFlagResults (name, FlagValueMissing name), [])
 processFlag name (arg2:args)
     | isFlagName arg2 = (makeFlagResults (name, FlagValueMissing name), arg2:args)
     | otherwise = (makeFlagResults (name, FlagValue name arg2), args)
 
-parseArg ::  String -> [String] -> (ProcessResults, [String])
+parseArg ::  String -> [String] -> (ParseResults, [String])
 parseArg arg args = 
   if isFlagName arg
     then processFlag (getFlagName arg) args
     else ((emptyFlagResults, [arg]), args) 
 
-parseArgs ::  [String] -> ProcessResults -> ProcessResults
+parseArgs ::  [String] -> ParseResults -> ParseResults
 parseArgs arguments res = case arguments of
     [] -> res
     arg:args -> let (res',args') = parseArg arg args in 
@@ -112,14 +118,14 @@ parseArgs arguments res = case arguments of
         
 
 process :: FlagData -> [String] -> Either [FlagError] ProcessResults
-process flagData args = case pipeline [addMissingFlags,
+process flagData@(_fd, constraints) args = case pipeline [addMissingFlags,
                                        validateUnknownFlags,
                                        validateLocal,
                                        validateFlagParsers, 
                                        validateGlobal]
                              flagData
                              flagResults of
-    ([],res) -> Right (res, argsResults)
+    ([],res) -> Right ((res, constraints) , argsResults)
     (errs,_) -> Left errs
   where (flagResults, argsResults) = parseArgs args (emptyFlagResults, emptyArgsResults)
 
@@ -130,17 +136,17 @@ pipeline (v:vs) fd fr = case v fd fr of
     (errs, fr') -> (errs, fr')
 
 validateLocal :: PipelineFunction
-validateLocal _fd fr = ([], fr)
+validateLocal (_fd, _const) fr = ([], fr)
 
 addMissingFlags :: PipelineFunction
-addMissingFlags fd fr = ([], fr `Map.union` Map.fromList flags)
+addMissingFlags (fd, _const) fr = ([], fr `Map.union` Map.fromList flags)
   where inputFlags = Map.keys fr
         codeFlags = Map.keys fd
         missingFlags = codeFlags \\ inputFlags 
         flags = map (\ name -> (name, FlagMissing name)) missingFlags
 
 validateUnknownFlags :: PipelineFunction
-validateUnknownFlags fd fr = (errors, fr)
+validateUnknownFlags (fd, _const) fr = (errors, fr)
   where inputFlags = Map.keys fr
         codeFlags = Map.keys fd
         missingFlags = inputFlags \\ codeFlags
@@ -150,20 +156,23 @@ validateUnknownFlags fd fr = (errors, fr)
                                ": Unkown flag is not defined in the code"
 
 validateFlagParsers :: PipelineFunction
-validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
+validateFlagParsers (fd, constraint) fr = (mapMaybe aux (Map.toList fd), fr)
   where aux :: (String, FlagDataAtom) -> Maybe FlagError
         aux (name, (_, validator)) = case Map.lookup name fr of 
                                       Nothing -> Nothing
-                                      Just val -> validator val
+                                      Just val -> case requiredAux validator constraint val of
+                                                   ValueParserError err -> Just err
+                                                   _ -> Nothing
+                                                 
 
 validateGlobal :: PipelineFunction
-validateGlobal _fd fr = ([], fr)
+validateGlobal (_fd, _const) fr = ([], fr)
 
-make :: (String, String, FlagArgument -> Either FlagError a) -> Flag a
+make :: (String, String, String -> Maybe a) -> Flag a
 make (name, help, parser) = Flag name help parser
 
 showHelp :: String -> FlagData -> IO ()
-showHelp desc flagData = do 
+showHelp desc (flagData, _const) = do 
   putStrLn desc
   putStrLn ""
   putStrLn "Usage:"
@@ -172,22 +181,37 @@ showHelp desc flagData = do
   mapM_ aux flags
   where aux (name, (help, _)) = putStrLn $ name ++ ":\t\t" ++ help
 
-mkError :: String -> String -> Either FlagError b
-mkError name s = Left $ FlagNonFatalError ("Error with flag '--" ++name ++ "': " ++ s)
+mkErrorAux :: String -> String -> ValueParser
+mkErrorAux name s = ValueParserError $ FlagNonFatalError ("Error with flag '--" ++name ++ "': " ++ s)
 
-required :: (String -> Maybe a) -> FlagArgument -> Either FlagError a
-required _parser (FlagMissing name) = mkError name "Flag is required"
-required _parser (FlagValueMissing name) = mkError name "Flag value was not provided"
-required parser (FlagValue name value) = case parser value of 
-  Nothing -> mkError name $ "Value '" ++ value ++ "' is not valid"
-  Just val -> Right val
+flagIsOptional :: String -> [FlagConstraint] -> Bool
+flagIsOptional name constraints = name `elem` optionalFlags
+  where optionalFlags = [n | (FlagOptional n) <- constraints]
 
-optional :: (String -> Maybe a) -> FlagArgument -> Either FlagError (Maybe a)
-optional _parser (FlagMissing _name) = Right Nothing
-optional _parser (FlagValueMissing name) = mkError name "Flag value was not provided"
-optional parser (FlagValue name value) = case parser value of 
-  Nothing -> mkError name $ "Value '" ++ value ++ "' is not valid"
-  val -> Right val
+
+data ValueParser = ValueParserSkip
+                |  ValueParserError FlagError
+                |  ValueParserNoError String
+requiredAux :: (String -> Bool) -> [FlagConstraint] -> FlagArgument -> ValueParser
+requiredAux _parser constraints (FlagMissing name) = if flagIsOptional name constraints
+  then ValueParserSkip
+  else mkErrorAux name "Flag is required"
+requiredAux _parser _constraints (FlagValueMissing name) = mkErrorAux name "Flag value was not provided"
+requiredAux parser _constraints (FlagValue name value) = if not (parser value)
+  then mkErrorAux name $ "Value '" ++ value ++ "' is not valid"
+  else ValueParserNoError value
+
+required :: (String -> Maybe a) -> [FlagConstraint] -> FlagArgument -> Either FlagError (Maybe a)
+required parser constraint flagArg = case requiredAux (isJust . parser) constraint flagArg of
+    ValueParserSkip -> Right Nothing
+    ValueParserNoError value -> Right $ parser value
+    ValueParserError err -> Left err
+
+maybeFlag :: Read a => (String -> Maybe a) -> String -> Maybe (Maybe a)
+maybeFlag _parser s = Just (readMaybe s)
+
+flagOptional :: Flag (Maybe a) -> FlagConstraint
+flagOptional (Flag name _ _) = FlagOptional name
 
 {- Flag parsers -}
 intFlag :: String -> Maybe Int

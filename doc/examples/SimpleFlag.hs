@@ -3,22 +3,29 @@ import System.Environment
 
 {- Begin Flag definitions -}
 userIdFlag :: Flag Int
-userIdFlag = make ("user_id", "the user id of the app", required intFlag)
+userIdFlag = make ("user_id", "the user id of the app", intFlag)
 
 userNameFlag :: Flag (Maybe String)
-userNameFlag = make ("user_name", "the user name of the app", optional stringFlag)
+userNameFlag = make ("user_name", "the user name of the app", maybeFlag stringFlag)
 
 helpFlag :: Flag Bool
-helpFlag = make ("help", "show this help", required boolFlag)
+helpFlag = make ("help", "show this help", boolFlag)
 
 description :: String
 description = "Simple Haskell program\n" ++
               "Just prints a simple message based on the input flags"
 
+constraints :: [FlagConstraint]
+constraints = [
+    flagOptional userNameFlag
+  ]
+
 flagData :: FlagData
 flagData = combine [flagToData userIdFlag,
                     flagToData userNameFlag,
                     flagToData helpFlag]
+                   constraints
+
 {- End Flag definitions -}
 
 {- Function to be executed if there was any errors parsing the flags -}

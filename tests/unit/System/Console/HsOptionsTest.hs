@@ -13,15 +13,24 @@ tests = [
     testNegativeNumbers,
     testNegativeDecimals,
     testMissingFlagError,
-    testFlagNotDefined
+    testFlagNotDefined,
+    testMissingOptionalFlag
   ]
 
 {- Flags -}
 userId :: HSO.Flag Int
-userId = HSO.make ("user_id", "user_id_help", HSO.required HSO.intFlag)
+userId = HSO.make ("user_id", "user_id_help", HSO.intFlag)
 
 userName :: HSO.Flag String
-userName = HSO.make ("user_name", "user_name_help", HSO.required HSO.stringFlag)
+userName = HSO.make ("user_name", "user_name_help", HSO.stringFlag)
+
+help :: HSO.Flag (Maybe Bool)
+help = HSO.make ("help", "help_helptext", HSO.maybeFlag HSO.boolFlag)
+
+constraints :: [HSO.FlagConstraint]
+constraints = [
+    HSO.flagOptional help
+  ]
 
 {- Test methods -}
 
@@ -79,3 +88,9 @@ testFlagNotDefined = "A passed in flag not defined in the code should report err
          pr = process flagData "--user_id 123 --user_name bender"
      assertNonFatalError pr "Error with flag --user_name: Unkown flag is not defined in the code"
      assertSingleError pr
+
+testMissingOptionalFlag :: UnitTest
+testMissingOptionalFlag = "A missing optional flag should set to Nothing" `unitTest`
+  do let flagData = makeFlagDataConstrained [f2d userId, f2d help] constraints
+         pr = process flagData "--user_id 123"
+     assertFlagValueEquals pr help Nothing
