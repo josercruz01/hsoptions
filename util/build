@@ -1,4 +1,4 @@
 #!/bin/sh
 
-hlint -c src tests
+hlint -i "Use camelCase" -c src tests
 cabal test

@@ -63,7 +63,4 @@ process fd input = case HSO.process fd args of
   where args = words input
 
 makeFlagData :: [HSO.FlagData] -> HSO.FlagData
-makeFlagData fd = HSO.combine fd []
-
-makeFlagDataConstrained :: [HSO.FlagData] -> [HSO.FlagConstraint] -> HSO.FlagData
-makeFlagDataConstrained = HSO.combine
+makeFlagData = HSO.combine
