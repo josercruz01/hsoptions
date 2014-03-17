@@ -205,7 +205,10 @@ validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
           where value = fromJust (Map.lookup name fr)
 
 make :: (String, String, [FlagConf a]) -> Flag a
-make (name, help, flagConf) = Flag name help flagConf
+make (name, help, flagConf) = if hasParser 
+                              then Flag name help flagConf
+                              else error ("Flag parser was not provided for flag --'" ++ name ++ "'")
+  where hasParser = not . null $ [x | (FlagConf_Parser x) <- flagConf]
 
 showHelp :: String -> FlagData -> IO ()
 showHelp desc flagData = do 
