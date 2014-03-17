@@ -112,9 +112,24 @@ get result (Flag name _ flagconf) = fromJust $ runParser flagconf argValue
                                        " Perhaps this flag was not added to the flagData array"))
                                (Map.lookup name result )
 
-runParser :: [FlagConf a] -> FlagArgument -> Maybe a
-runParser flagconf = p
+flagDefault :: [FlagConf a] -> Maybe a
+flagDefault fc = listToMaybe [ x | (FlagConf_DefaultIs x) <- fc]
+
+flagEmptyValue :: [FlagConf a] -> Maybe a
+flagEmptyValue fc = listToMaybe [ x | (FlagConf_EmptyValueIs x) <- fc]
+
+runRealParser :: [FlagConf a] -> FlagArgument -> Maybe a
+runRealParser flagconf = p
   where p = head [x | (FlagConf_Parser x) <- flagconf]
+
+runParser :: [FlagConf a] -> FlagArgument -> Maybe a
+runParser fc arg@(FlagMissing _) = case flagDefault fc of
+    Nothing -> runRealParser fc arg
+    Just val -> Just val
+runParser fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
+    Nothing -> runRealParser fc arg
+    Just val -> Just val
+runParser fc arg = runRealParser fc arg
 
 combine :: [FlagData] -> FlagData
 combine = foldl Map.union Map.empty
