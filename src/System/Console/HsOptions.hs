@@ -93,18 +93,9 @@ emptyFlagResults = Map.empty
 emptyArgsResults :: [String]
 emptyArgsResults = []
 
-isInteger :: String -> Bool
-isInteger s = case reads s :: [(Integer, String)] of
-                [(_, "")] -> True
-                _         -> False
-
-isDouble :: String -> Bool
-isDouble s = case reads s :: [(Double, String)] of
-                [(_, "")] -> True
-                _         -> False
-
 isNumeric :: String -> Bool
-isNumeric s = isInteger s || isDouble s
+isNumeric s = isJust (readMaybe s :: Maybe Integer) || 
+              isJust (readMaybe s :: Maybe Double) 
 
 get :: FlagResults -> Flag a ->  a
 get result (Flag name _ flagconf) = fromJust $ runParser flagconf argValue
