@@ -1,13 +1,10 @@
 import System.Console.HsOptions
 import System.Environment
+import qualified Greeter as Greeter
 
 {- Begin Flag definitions -}
 userIdFlag :: Flag Int
 userIdFlag = make ("user_id", "the user id of the app", [parser intParser])
-
-userNameFlag :: Flag (Maybe String)
-userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser, 
-                                                               isOptional])
 
 helpFlag :: Flag Bool
 helpFlag = make ("help", "show this help", boolFlag)
@@ -17,9 +14,11 @@ description = "Simple Haskell program\n" ++
               "Just prints a simple message based on the input flags"
 
 flagData :: FlagData
-flagData = combine [flagToData userIdFlag,
-                    flagToData userNameFlag,
-                    flagToData helpFlag]
+flagData = combine [
+            combine [ flagToData userIdFlag,
+                      flagToData helpFlag],
+            Greeter.flagData
+           ]
 
 {- End Flag definitions -}
 
@@ -38,9 +37,7 @@ main_success (flagResults, _argsResults) = if get flagResults helpFlag
   then showHelp description flagData 
   else do let userId = get flagResults userIdFlag
           putStrLn $ "Main.hs: User id: " ++ show userId
-          case (get flagResults userNameFlag) of
-            Nothing -> return ()
-            Just name -> putStrLn $ "User name: " ++ name
+          Greeter.sayHello flagResults
           putStrLn ""
 
 main :: IO ()
