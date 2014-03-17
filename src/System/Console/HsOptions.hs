@@ -254,7 +254,7 @@ intParser (FlagValue _ value) = readMaybe value
 stringParser :: FlagArgument -> Maybe String
 stringParser (FlagMissing _) = Nothing
 stringParser (FlagValueMissing _) = Nothing
-stringParser (FlagValue _ value) = readMaybe value
+stringParser (FlagValue _ value) = Just value
 
 boolParser :: FlagArgument -> Maybe Bool
 boolParser (FlagMissing _) = Just False

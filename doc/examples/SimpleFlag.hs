@@ -6,10 +6,11 @@ userIdFlag :: Flag Int
 userIdFlag = make ("user_id", "the user id of the app", [parser intParser])
 
 userNameFlag :: Flag (Maybe String)
-userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser])
+userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser, 
+                                                               isOptional])
 
 helpFlag :: Flag Bool
-helpFlag = make ("help", "show this help", [parser boolParser])
+helpFlag = make ("help", "show this help", boolFlag)
 
 description :: String
 description = "Simple Haskell program\n" ++

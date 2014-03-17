@@ -33,6 +33,12 @@ help :: HSO.Flag (Maybe Bool)
 help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
                                            HSO.isOptional])
 
+userLastName :: HSO.Flag (Maybe String)
+userLastName = HSO.make ("user_last_name", 
+                         "user_last_name_help", 
+                         [HSO.maybeParser HSO.stringParser, 
+                          HSO.isOptional])
+
 dryRun :: HSO.Flag Bool
 dryRun = HSO.make ("dry_run", "dryrun_helptext", HSO.boolFlag)
 
@@ -101,16 +107,16 @@ testMissingOptionalFlag = "A missing optional flag should set to Nothing" `unitT
 
 testOptionalFlagMissingValue :: UnitTest
 testOptionalFlagMissingValue = "An optional flag without value should report error" `unitTest`
-  do let flagData = makeFlagData [f2d userId, f2d help]
-         pr = process flagData "--user_id 123 --help"
-     assertNonFatalError pr "Error with flag '--help': Flag value was not provided"
+  do let flagData = makeFlagData [f2d userId, f2d userLastName]
+         pr = process flagData "--user_id 123 --user_last_name"
+     assertNonFatalError pr "Error with flag '--user_last_name': Flag value was not provided"
      assertSingleError pr
 
 testOptionalFlagCorrectValue :: UnitTest
 testOptionalFlagCorrectValue = "An optional flag with correct value should work correctly" `unitTest`
-  do let flagData = makeFlagData [f2d userId, f2d help]
-         pr = process flagData "--user_id 123 --help True"
-     assertFlagValueEquals pr help (Just True)
+  do let flagData = makeFlagData [f2d userId, f2d userLastName]
+         pr = process flagData "--user_id 123 --user_last_name batman"
+     assertFlagValueEquals pr userLastName (Just "batman")
      assertFlagValueEquals pr userId 123
 
 testOptionalFlagIncorrectValue :: UnitTest
