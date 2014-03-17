@@ -3,13 +3,13 @@ import System.Environment
 
 {- Begin Flag definitions -}
 userIdFlag :: Flag Int
-userIdFlag = make ("user_id", "the user id of the app", [parser intFlag])
+userIdFlag = make ("user_id", "the user id of the app", [parser intParser])
 
 userNameFlag :: Flag (Maybe String)
-userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringFlag])
+userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser])
 
 helpFlag :: Flag Bool
-helpFlag = make ("help", "show this help", [parser boolFlag])
+helpFlag = make ("help", "show this help", [parser boolParser])
 
 description :: String
 description = "Simple Haskell program\n" ++

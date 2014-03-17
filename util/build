@@ -1,4 +1,4 @@
 #!/bin/sh
 
 hlint -i "Use camelCase" -c src tests
-cabal test
+cabal test --show-details=always

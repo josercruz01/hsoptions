@@ -2,16 +2,20 @@ module System.Console.HsOptions(
     make,
     get,
 
-    intFlag,
-    stringFlag,
-    boolFlag,
-    flagToData,
+    intParser,
+    stringParser,
+    boolParser,
 
+    boolFlag,
+
+    flagToData,
     combine,
     process,
     showHelp,
 
     isOptional,
+    emptyValueIs,
+    defaultIs,
     parser,
     maybeParser,
 
@@ -43,19 +47,30 @@ data FlagArgument = FlagMissing String
                   | FlagValueMissing String
                   | FlagValue String String
 
+data ValidationResult = ValidationError FlagError
+                      | ValidationSuccess 
+
 
 data FlagConf a = 
     FlagConf_IsOptional 
   | FlagConf_DefaultIs a
   | FlagConf_Parser (FlagArgument -> Maybe a)
+  | FlagConf_EmptyValueIs a
 
 data FlagDataConf = 
     FlagDataConf_IsOptional
   | FlagDataConf_HasDefault 
   | FlagDataConf_Validator (FlagArgument -> Bool) 
+  | FlagDataConf_HasEmptyValue
 
 isOptional :: FlagConf (Maybe a)
 isOptional = FlagConf_IsOptional
+
+emptyValueIs :: a -> FlagConf a
+emptyValueIs = FlagConf_EmptyValueIs
+
+defaultIs :: a -> FlagConf a
+defaultIs = FlagConf_DefaultIs 
 
 parser :: (FlagArgument -> Maybe a) -> FlagConf a
 parser = FlagConf_Parser 
@@ -109,6 +124,7 @@ flagToData (Flag name help flagConf) = Map.fromList [(name, (help, flagDataConf)
   where flagDataConf = map aux flagConf
         aux FlagConf_IsOptional = FlagDataConf_IsOptional
         aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
+        aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
 
 isFlagName :: String -> Bool
@@ -184,7 +200,7 @@ validateFlagParsers :: PipelineFunction
 validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
   where aux :: (String, FlagDataAtom) -> Maybe FlagError
         aux (name, (_, flagDataConf)) = case checkValidator flagDataConf value of
-                                           ValueParserError err -> Just err
+                                           ValidationError err -> Just err
                                            _ -> Nothing 
           where value = fromJust (Map.lookup name fr)
 
@@ -201,44 +217,51 @@ showHelp desc flagData = do
   mapM_ aux flags
   where aux (name, (help, _)) = putStrLn $ name ++ ":\t\t" ++ help
 
-mkErrorAux :: String -> String -> ValueParser
-mkErrorAux name s = ValueParserError $ FlagNonFatalError ("Error with flag '--" ++name ++ "': " ++ s)
-
-data ValueParser = ValueParserSkip
-                |  ValueParserError FlagError
-                |  ValueParserNoError String
-
 flagDIsOptional :: [FlagDataConf] -> Bool
-flagDIsOptional fdc = not . null $ flagIsOptional
-  where flagIsOptional = [ x | x@FlagDataConf_IsOptional <- fdc] 
+flagDIsOptional fdc = not . null $ [ x | x@FlagDataConf_IsOptional <- fdc] 
 
+flagDHasDefault :: [FlagDataConf] -> Bool
+flagDHasDefault fdc = not . null $ [ x | x@FlagDataConf_HasDefault <- fdc] 
 
-runValidator :: [FlagDataConf] -> FlagArgument -> Bool
-runValidator fdc = validator 
+flagDHasEmptyValue :: [FlagDataConf] -> Bool
+flagDHasEmptyValue fdc = not . null $ [ x | x@FlagDataConf_HasEmptyValue <- fdc] 
+
+runDValidator :: [FlagDataConf] -> FlagArgument -> Bool
+runDValidator fdc = validator 
   where validator = head [x | (FlagDataConf_Validator x) <- fdc]
 
-checkValidator :: [FlagDataConf] -> FlagArgument -> ValueParser
+validationError :: String -> String -> ValidationResult
+validationError name s = ValidationError $ FlagNonFatalError ("Error with flag '--" ++name ++ "': " ++ s)
+
+checkValidator :: [FlagDataConf] -> FlagArgument -> ValidationResult
 checkValidator fdc (FlagMissing name) 
-  | flagDIsOptional fdc = ValueParserSkip
-  | otherwise = mkErrorAux name "Flag is required"
-checkValidator _fdc (FlagValueMissing name) = mkErrorAux name "Flag value was not provided"
+  | flagDIsOptional fdc = ValidationSuccess
+  | flagDHasDefault fdc = ValidationSuccess
+  | otherwise = validationError name "Flag is required"
+checkValidator fdc (FlagValueMissing name) 
+  | flagDHasEmptyValue fdc  = ValidationSuccess
+  | otherwise = validationError name "Flag value was not provided"
 checkValidator fdc flagArgument@(FlagValue name value) 
-  | runValidator fdc flagArgument = ValueParserNoError value
-  | otherwise = mkErrorAux name $ "Value '" ++ value ++ "' is not valid"
+  | runDValidator fdc flagArgument = ValidationSuccess 
+  | otherwise = validationError name $ "Value '" ++ value ++ "' is not valid"
 
 {- Flag parsers -}
-intFlag :: FlagArgument -> Maybe Int
-intFlag (FlagMissing _) = Nothing
-intFlag (FlagValueMissing _) = Nothing
-intFlag (FlagValue _ value) = readMaybe value
+intParser :: FlagArgument -> Maybe Int
+intParser (FlagMissing _) = Nothing
+intParser (FlagValueMissing _) = Nothing
+intParser (FlagValue _ value) = readMaybe value
 
-stringFlag :: FlagArgument -> Maybe String
-stringFlag (FlagMissing _) = Nothing
-stringFlag (FlagValueMissing _) = Nothing
-stringFlag (FlagValue _ value) = readMaybe value
+stringParser :: FlagArgument -> Maybe String
+stringParser (FlagMissing _) = Nothing
+stringParser (FlagValueMissing _) = Nothing
+stringParser (FlagValue _ value) = readMaybe value
 
-boolFlag :: FlagArgument -> Maybe Bool
-boolFlag (FlagMissing _) = Just False
-boolFlag (FlagValueMissing _) = Just False
-boolFlag (FlagValue _ value) = readMaybe value
+boolParser :: FlagArgument -> Maybe Bool
+boolParser (FlagMissing _) = Just False
+boolParser (FlagValueMissing _) = Just True
+boolParser (FlagValue _ value) = readMaybe value
 
+boolFlag :: [FlagConf Bool]
+boolFlag = [parser boolParser,
+            defaultIs False,
+            emptyValueIs True]

@@ -14,18 +14,27 @@ tests = [
     testNegativeDecimals,
     testMissingFlagError,
     testFlagNotDefined,
-    testMissingOptionalFlag
+    testMissingOptionalFlag,
+    testOptionalFlagMissingValue,
+    testOptionalFlagCorrectValue,
+    testOptionalFlagIncorrectValue,
+    testMissingBoolFlagIsFalse,
+    testEmptyBoolFlagIsTrue
   ]
 
 {- Flags -}
 userId :: HSO.Flag Int
-userId = HSO.make ("user_id", "user_id_help", [HSO.parser HSO.intFlag])
+userId = HSO.make ("user_id", "user_id_help", [HSO.parser HSO.intParser])
 
 userName :: HSO.Flag String
-userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringFlag])
+userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser])
 
 help :: HSO.Flag (Maybe Bool)
-help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolFlag, HSO.isOptional])
+help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
+                                           HSO.isOptional])
+
+dryRun :: HSO.Flag Bool
+dryRun = HSO.make ("dry_run", "dryrun_helptext", HSO.boolFlag)
 
 {- Test methods -}
 
@@ -89,3 +98,39 @@ testMissingOptionalFlag = "A missing optional flag should set to Nothing" `unitT
   do let flagData = makeFlagData [f2d userId, f2d help]
          pr = process flagData "--user_id 123"
      assertFlagValueEquals pr help Nothing
+
+testOptionalFlagMissingValue :: UnitTest
+testOptionalFlagMissingValue = "An optional flag without value should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d help]
+         pr = process flagData "--user_id 123 --help"
+     assertNonFatalError pr "Error with flag '--help': Flag value was not provided"
+     assertSingleError pr
+
+testOptionalFlagCorrectValue :: UnitTest
+testOptionalFlagCorrectValue = "An optional flag with correct value should work correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d help]
+         pr = process flagData "--user_id 123 --help True"
+     assertFlagValueEquals pr help (Just True)
+     assertFlagValueEquals pr userId 123
+
+testOptionalFlagIncorrectValue :: UnitTest
+testOptionalFlagIncorrectValue = "An optional flag with incorrect value should report error" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d help]
+         pr = process flagData "--user_id 123 --help blah"
+     assertNonFatalError pr "Error with flag '--help': Value 'blah' is not valid"
+     assertSingleError pr
+
+testMissingBoolFlagIsFalse :: UnitTest
+testMissingBoolFlagIsFalse = "An missing boolean flag defaults to False" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d dryRun]
+         pr = process flagData "--user_id 123 "
+     assertFlagValueEquals pr dryRun False
+     assertFlagValueEquals pr userId 123
+
+testEmptyBoolFlagIsTrue :: UnitTest
+testEmptyBoolFlagIsTrue = "An boolean flag with empty value defaults should be True" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d dryRun]
+         pr = process flagData "--user_id 123 --dry_run"
+     assertFlagValueEquals pr dryRun True
+     assertFlagValueEquals pr userId 123
+
