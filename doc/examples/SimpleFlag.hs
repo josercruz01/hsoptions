@@ -13,10 +13,18 @@ description :: String
 description = "Simple Haskell program\n" ++
               "Just prints a simple message based on the input flags"
 
+--todo: validate unique flag names
+
+database :: Flag (Maybe String)
+database = make ("database", "database connection string. required if user_id == -1",
+    maybeParser stringParser:
+    requiredIf (\ fr -> get fr userIdFlag == -1))
+
 flagData :: FlagData
 flagData = combine [
             combine [ flagToData userIdFlag,
-                      flagToData helpFlag],
+                      flagToData helpFlag,
+                      flagToData database],
             Greeter.flagData
            ]
 
@@ -36,7 +44,11 @@ main_success :: ProcessResults -> IO ()
 main_success (flagResults, _argsResults) = if get flagResults helpFlag
   then showHelp description flagData 
   else do let userId = get flagResults userIdFlag
+              db = get flagResults database
+              help = get flagResults helpFlag
           putStrLn $ "Main.hs: User id: " ++ show userId
+          putStrLn $ "Main.hs: Database: " ++ show db
+          putStrLn $ "Main.hs: Help: " ++ show help
           Greeter.sayHello flagResults
           putStrLn ""
 

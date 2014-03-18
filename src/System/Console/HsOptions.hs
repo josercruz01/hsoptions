@@ -18,6 +18,7 @@ module System.Console.HsOptions(
     defaultIs,
     parser,
     maybeParser,
+    requiredIf,
 
     Flag(..),
     FlagData,
@@ -54,12 +55,14 @@ data ValidationResult = ValidationError FlagError
 data FlagConf a = 
     FlagConf_IsOptional 
   | FlagConf_DefaultIs a
+  | FlagConf_RequiredIf (FlagResults -> Bool)
   | FlagConf_Parser (FlagArgument -> Maybe a)
   | FlagConf_EmptyValueIs a
 
 data FlagDataConf = 
     FlagDataConf_IsOptional
   | FlagDataConf_HasDefault 
+  | FlagDataConf_RequiredIf  (FlagResults -> Bool)
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
 
@@ -71,6 +74,9 @@ emptyValueIs = FlagConf_EmptyValueIs
 
 defaultIs :: a -> FlagConf a
 defaultIs = FlagConf_DefaultIs 
+
+requiredIf :: (FlagResults -> Bool) -> [FlagConf (Maybe a)]
+requiredIf predicate = [isOptional, FlagConf_RequiredIf predicate]
 
 parser :: (FlagArgument -> Maybe a) -> FlagConf a
 parser = FlagConf_Parser 
@@ -130,6 +136,7 @@ flagToData (Flag name help flagConf) = Map.fromList [(name, (help, flagDataConf)
   where flagDataConf = map aux flagConf
         aux FlagConf_IsOptional = FlagDataConf_IsOptional
         aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
+        aux (FlagConf_RequiredIf predicate) = FlagDataConf_RequiredIf predicate
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
 
@@ -172,18 +179,25 @@ parseArgs arguments res = case arguments of
 process :: FlagData -> [String] -> Either [FlagError] ProcessResults
 process fd args = case pipeline [addMissingFlags,
                                  validateUnknownFlags,
-                                 validateFlagParsers]
+                                 validateFlagParsers,
+                                 validateGlobal]
                              fd
                              flagResults of
     ([],res) -> Right (res, argsResults)
     (errs,_) -> Left errs
   where (flagResults, argsResults) = parseArgs args (emptyFlagResults, emptyArgsResults)
 
+hasFatalError :: [FlagError] -> Bool
+hasFatalError errs = not . null $ [x | x@(FlagFatalError _) <- errs]
+
 pipeline :: [PipelineFunction] -> PipelineFunction
 pipeline [] _fd fr = ([], fr)
 pipeline (v:vs) fd fr = case v fd fr of 
     ([], fr') -> pipeline vs fd fr' 
-    (errs, fr') -> (errs, fr')
+    (errs, fr') -> if hasFatalError errs 
+                   then (errs, fr')
+                   else let (errs'', fr'') = pipeline vs fd fr' in 
+                        (errs ++ errs'', fr' `Map.union` fr'')
 
 addMissingFlags :: PipelineFunction
 addMissingFlags fd  fr = ([], fr `Map.union` Map.fromList flags)
@@ -210,6 +224,20 @@ validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
                                            _ -> Nothing 
           where value = fromJust (Map.lookup name fr)
 
+validateGlobal :: PipelineFunction
+validateGlobal fd fr = (mapMaybe aux (Map.toList fd), fr)
+  where aux :: (String, FlagDataAtom) -> Maybe FlagError
+        aux (name, (_, flagDataConf)) = case requiredIfValidator flagDataConf fr value of
+                                             ValidationError err -> Just err
+                                             _ -> Nothing 
+          where value = fromJust (Map.lookup name fr)
+
+requiredIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
+requiredIfValidator fdc fr (FlagMissing name) 
+  | flagDIsRequiredIf fdc fr = validationError name "Flag is required"
+  | otherwise = ValidationSuccess
+requiredIfValidator _fdc _fr _flagArg = ValidationSuccess
+
 make :: (String, String, [FlagConf a]) -> Flag a
 make (name, help, flagConf) = if hasParser 
                               then Flag name help flagConf
@@ -228,6 +256,12 @@ showHelp desc flagData = do
 
 flagDIsOptional :: [FlagDataConf] -> Bool
 flagDIsOptional fdc = not . null $ [ x | x@FlagDataConf_IsOptional <- fdc] 
+
+flagDIsRequiredIf :: [FlagDataConf] -> FlagResults -> Bool
+flagDIsRequiredIf fdc fr = case maybePredicate of 
+                              Nothing -> False
+                              Just p -> p fr
+   where maybePredicate = listToMaybe [ predicate | (FlagDataConf_RequiredIf predicate) <- fdc] 
 
 flagDHasDefault :: [FlagDataConf] -> Bool
 flagDHasDefault fdc = not . null $ [ x | x@FlagDataConf_HasDefault <- fdc] 

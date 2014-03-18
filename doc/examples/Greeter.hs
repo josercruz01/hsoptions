@@ -12,4 +12,4 @@ flagData = combine [flagToData userNameFlag]
 sayHello :: FlagResults -> IO ()
 sayHello flagResults = case (get flagResults userNameFlag) of
     Nothing -> return ()
-    Just name -> putStrLn $ "User name: " ++ name
+    Just name -> putStrLn $ "Greeter.hs: User name: " ++ name

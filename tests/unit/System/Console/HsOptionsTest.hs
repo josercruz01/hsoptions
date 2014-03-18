@@ -19,7 +19,11 @@ tests = [
     testOptionalFlagCorrectValue,
     testOptionalFlagIncorrectValue,
     testMissingBoolFlagIsFalse,
-    testEmptyBoolFlagIsTrue
+    testEmptyBoolFlagIsTrue,
+    testRequiredIfNotRequired,
+    testRequiredIfRequired,
+    testRequiredIfRequiredButProvided,
+    testRequiredIfRequiredButMissing
   ]
 
 {- Flags -}
@@ -38,6 +42,13 @@ userLastName = HSO.make ("user_last_name",
                          "user_last_name_help", 
                          [HSO.maybeParser HSO.stringParser, 
                           HSO.isOptional])
+
+database :: HSO.Flag (Maybe String)
+database = HSO.make ("database", 
+                     "database_help", 
+                     HSO.maybeParser HSO.stringParser:
+                     HSO.requiredIf (\ fr -> HSO.get fr userId == 4444) 
+                     )
 
 dryRun :: HSO.Flag Bool
 dryRun = HSO.make ("dry_run", "dryrun_helptext", HSO.boolFlag)
@@ -139,4 +150,32 @@ testEmptyBoolFlagIsTrue = "An boolean flag with empty value defaults should be T
          pr = process flagData "--user_id 123 --dry_run"
      assertFlagValueEquals pr dryRun True
      assertFlagValueEquals pr userId 123
+
+testRequiredIfNotRequired :: UnitTest
+testRequiredIfNotRequired = "A requiredIf flag that returns false on the predicate should not be required" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d database]
+         pr = process flagData "--user_id 1234"
+     assertFlagValueEquals pr database Nothing
+     assertFlagValueEquals pr userId 1234
+
+testRequiredIfRequired :: UnitTest
+testRequiredIfRequired = "A requiredIf flag that returns true on the predicate should be required" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d database]
+         pr = process flagData "--user_id 4444"
+     assertNonFatalError pr "Error with flag '--database': Flag is required"
+     assertSingleError pr
+
+testRequiredIfRequiredButProvided :: UnitTest
+testRequiredIfRequiredButProvided = "A requiredIf flag that returns true on the predicate but was provided should work correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d database]
+         pr = process flagData "--user_id 4444 --database mock"
+     assertFlagValueEquals pr database (Just "mock")
+     assertFlagValueEquals pr userId 4444
+
+testRequiredIfRequiredButMissing :: UnitTest
+testRequiredIfRequiredButMissing = "A requiredIf flag with missing value should report error " `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d database]
+         pr = process flagData "--user_id 4444 --database "
+     assertNonFatalError pr "Error with flag '--database': Flag value was not provided"
+     assertSingleError pr
 
