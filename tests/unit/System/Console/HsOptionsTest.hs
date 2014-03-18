@@ -23,7 +23,8 @@ tests = [
     testRequiredIfNotRequired,
     testRequiredIfRequired,
     testRequiredIfRequiredButProvided,
-    testRequiredIfRequiredButMissing
+    testRequiredIfRequiredButMissing,
+    testRequiredIfRequiredButMissing 
   ]
 
 {- Flags -}
@@ -107,7 +108,7 @@ testFlagNotDefined :: UnitTest
 testFlagNotDefined = "A passed in flag not defined in the code should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123 --user_name bender"
-     assertNonFatalError pr "Error with flag --user_name: Unkown flag is not defined in the code"
+     assertNonFatalError pr "Error with flag '--user_name': Unkown flag is not defined in the code"
      assertSingleError pr
 
 testMissingOptionalFlag :: UnitTest
@@ -177,5 +178,12 @@ testRequiredIfRequiredButMissing = "A requiredIf flag with missing value should 
   do let flagData = makeFlagData [f2d userId, f2d database]
          pr = process flagData "--user_id 4444 --database "
      assertNonFatalError pr "Error with flag '--database': Flag value was not provided"
+     assertSingleError pr
+
+testGlobalValidationOccursAtTheEnd :: UnitTest
+testGlobalValidationOccursAtTheEnd  = "Global validation should not execute if local validation failed" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d database]
+         pr = process flagData ""
+     assertNonFatalError pr "Error with flag '--user_id': Flag is required"
      assertSingleError pr
 

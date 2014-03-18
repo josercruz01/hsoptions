@@ -11,7 +11,8 @@ module System.Console.HsOptions(
     flagToData,
     combine,
     process,
-    showHelp,
+    processMain,
+    defaultDisplayHelp,
 
     isOptional,
     emptyValueIs,
@@ -33,6 +34,7 @@ module System.Console.HsOptions(
 import Data.List
 import Data.Maybe
 import Text.Read(readMaybe)
+import System.Environment
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -179,13 +181,31 @@ parseArgs arguments res = case arguments of
 process :: FlagData -> [String] -> Either [FlagError] ProcessResults
 process fd args = case pipeline [addMissingFlags,
                                  validateUnknownFlags,
-                                 validateFlagParsers,
-                                 validateGlobal]
+                                 validateFlagParsers]
                              fd
                              flagResults of
-    ([],res) -> Right (res, argsResults)
+    ([],res) -> case validateGlobal fd res of 
+                  ([], res') -> Right (res', argsResults)
+                  (errs, _) -> Left errs
     (errs,_) -> Left errs
   where (flagResults, argsResults) = parseArgs args (emptyFlagResults, emptyArgsResults)
+
+
+anyArgIsHelp :: [String] -> Bool
+anyArgIsHelp args = elem "--help" args ||
+                    elem "-h" args
+
+processMain :: String -> -- program description
+               FlagData -> -- flags
+               (ProcessResults -> IO ()) ->  -- success function. run program
+               ([FlagError] -> IO ()) -> -- failure function. show errors
+               (String -> [(String, String)] -> IO ()) -> -- help display function
+               IO () 
+processMain desc fd success failure displayHelp = 
+    do args <- getArgs 
+       if anyArgIsHelp args 
+          then displayHelp desc (getFlagHelp fd)
+          else either failure success (process fd args)
 
 hasFatalError :: [FlagError] -> Bool
 hasFatalError errs = not . null $ [x | x@(FlagFatalError _) <- errs]
@@ -212,9 +232,9 @@ validateUnknownFlags fd fr = (errors, fr)
         codeFlags = Map.keys fd
         missingFlags = inputFlags \\ codeFlags
         errors = map flagUnkownError missingFlags
-        flagUnkownError name = FlagNonFatalError $ "Error with flag --" ++
+        flagUnkownError name = FlagNonFatalError $ "Error with flag '--" ++
                                name ++
-                               ": Unkown flag is not defined in the code"
+                               "': Unkown flag is not defined in the code"
 
 validateFlagParsers :: PipelineFunction
 validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
@@ -244,15 +264,19 @@ make (name, help, flagConf) = if hasParser
                               else error ("Flag parser was not provided for flag --'" ++ name ++ "'")
   where hasParser = not . null $ [x | (FlagConf_Parser x) <- flagConf]
 
-showHelp :: String -> FlagData -> IO ()
-showHelp desc flagData = do 
+defaultDisplayHelp :: String -> [(String, String)] -> IO ()
+defaultDisplayHelp desc flags = do 
   putStrLn desc
   putStrLn ""
   putStrLn "Usage:"
   putStrLn ""
-  let flags = Map.toList flagData
   mapM_ aux flags
-  where aux (name, (help, _)) = putStrLn $ name ++ ":\t\t" ++ help
+  where aux (name, help) = putStrLn $ name ++ ":\t\t" ++ help
+
+getFlagHelp :: FlagData -> [(String, String)]
+getFlagHelp fd = let flags = Map.toList fd in
+                 map (\ (name, (help, _)) -> (name, help)) flags ++ 
+                     [("help", "show this help")]
 
 flagDIsOptional :: [FlagDataConf] -> Bool
 flagDIsOptional fdc = not . null $ [ x | x@FlagDataConf_IsOptional <- fdc] 
