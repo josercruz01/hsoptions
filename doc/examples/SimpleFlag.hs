@@ -1,4 +1,5 @@
 import System.Console.HsOptions
+import Control.Monad
 import qualified Greeter as Greeter
 
 {- Begin Flag definitions -}
@@ -14,10 +15,14 @@ database = make ("database", "database connection string. required if user_id ==
     maybeParser stringParser:
     requiredIf (\ fr -> get fr userIdFlag == -1))
 
+tellJoke :: Flag Bool
+tellJoke = make ("tell_joke", "tells a joke", boolFlag)
+
 flagData :: FlagData
 flagData = combine [
             combine [ flagToData userIdFlag,
-                      flagToData database],
+                      flagToData database,
+                      flagToData tellJoke],
             Greeter.flagData
            ]
 
@@ -37,11 +42,14 @@ main_success :: ProcessResults -> IO ()
 main_success (flagResults, _argsResults) = 
    do let userId = get flagResults userIdFlag
           db = get flagResults database
+
       putStrLn $ "Main.hs: User id: " ++ show userId
       putStrLn $ "Main.hs: Database: " ++ show db
-      Greeter.sayHello flagResults
-      putStrLn ""
 
+      Greeter.sayHello flagResults
+
+      when (get flagResults tellJoke) $
+          putStrLn "I never make mistakes…I thought I did once; but I was wrong."
 
 main :: IO ()
 main = processMain description 
