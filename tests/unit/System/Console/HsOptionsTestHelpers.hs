@@ -4,6 +4,7 @@ where
 import Test.HUnit
 import Control.Monad
 import qualified System.Console.HsOptions as HSO
+import qualified System.Console.HsOptions.ConfParser as Parser
 
 f2d :: HSO.Flag a -> HSO.FlagData
 f2d = HSO.flagToData
@@ -12,11 +13,18 @@ data TestProcessResult =
     TestProcessError [HSO.FlagError] 
   | TestProcessSuccess HSO.ProcessResults
 
+data TestConfParseResult = 
+    TestConfParseResultError [Parser.ConfParserError] 
+  | TestConfParseResultSuccess [String]
+
 errorsToString :: [HSO.FlagError] -> String
 errorsToString  [] = ""
 errorsToString  (er:errs) = aux er ++ errorsToString errs
   where aux (HSO.FlagNonFatalError erMessage) = " * '" ++ erMessage ++ "'\n"
         aux (HSO.FlagFatalError erMessage) = " * '" ++erMessage ++ "'\n"
+
+confErrorsToString :: [Parser.ConfParserError] -> String
+confErrorsToString errs =  unlines (map (\e-> " * '" ++ show e ++ "'") errs)
 
 assertNonFatalError :: TestProcessResult -> String -> Assertion
 assertNonFatalError (TestProcessSuccess _) errorMessage = 
@@ -64,3 +72,54 @@ process fd input = case HSO.process fd args of
 
 makeFlagData :: [HSO.FlagData] -> HSO.FlagData
 makeFlagData = HSO.combine
+
+
+makeConfFile :: [String] -> String
+makeConfFile = unlines
+
+parse :: String -> TestConfParseResult 
+parse s = case Parser.parseFromString "test.conf" s of 
+  Left errs -> TestConfParseResultError errs
+  Right result -> TestConfParseResultSuccess result
+
+assertConfArgsEquals :: TestConfParseResult -> [String] -> Assertion
+assertConfArgsEquals (TestConfParseResultError errs) _args = 
+  assertFailure  ("assertConfArgsEquals failed. expected no errors when comparing results" ++
+                  " but errors found:\n" ++
+                  "** errors that where found:\n" ++ 
+                  confErrorsToString errs)
+assertConfArgsEquals  (TestConfParseResultSuccess results) expected = assertEqual "" expected results 
+
+assertNonFatalConfError :: TestConfParseResult  -> String -> Assertion
+assertNonFatalConfError  (TestConfParseResultSuccess _) errorMessage = 
+  assertFailure $ "assertNonFatalConfError failed. expected '" ++ errorMessage ++ "' but zero errors occurred"
+assertNonFatalConfError   (TestConfParseResultError errs) errorMessage = 
+  let nfErrs = [show x | x@(Parser.ConfParserNonFatalError _ _) <- errs] in
+  let expectedError = "Error on 'test.conf': " ++ errorMessage in
+  when ( expectedError `notElem` nfErrs)
+    (assertFailure $ "assertNonFatalConfError failed. expected '" ++ 
+                       expectedError ++ 
+                       "' but error not found.\n" ++
+                       "** other errors that where found:\n" ++ 
+                       confErrorsToString errs)
+
+assertFatalConfError :: TestConfParseResult  -> String -> Assertion
+assertFatalConfError  (TestConfParseResultSuccess _) errorMessage = 
+  assertFailure $ "assertFatalConfError failed. expected '" ++ errorMessage ++ "' but zero errors occurred"
+assertFatalConfError   (TestConfParseResultError errs) errorMessage = 
+  let nfErrs = [show x | x@(Parser.ConfParserFatalError _ _) <- errs] in
+  when ( errorMessage `notElem` nfErrs)
+    (assertFailure $ "assertFatalConfError failed. expected '" ++ 
+                       errorMessage ++ 
+                       "' but error not found.\n" ++
+                       "** other errors that where found:\n" ++ 
+                       confErrorsToString errs)
+
+assertSingleConfError :: TestConfParseResult  -> Assertion
+assertSingleConfError  (TestConfParseResultSuccess _) = 
+  assertFailure "assertSingleConfError failed. expected single error but zero errors occurred"
+assertSingleConfError   (TestConfParseResultError errs) = let count = length errs in
+  when (count /= 1) (assertFailure $ "assertSingleConfError failed. expected single error but "++ 
+                                    show count ++ " errors occurred\n" ++ 
+                                    "** errors  found:\n" ++ 
+                                    confErrorsToString errs)

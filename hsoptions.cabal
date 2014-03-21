@@ -16,6 +16,7 @@ cabal-version:       >=1.8
 library
   exposed-modules:
     System.Console.HsOptions
+    System.Console.HsOptions.ConfParser
   -- other-modules:
   build-depends:     base == 4.6.*,
                      containers == 0.5.*
@@ -28,7 +29,7 @@ test-suite unit-tests
   main-is:           MainTestSuite.hs
   ghc-options:       -Wall
   other-modules:     UnitTestHelper, 
-                     System.Console.HsOptionsTestHelpers 
+                     System.Console.HsOptionsTestHelpers
   build-depends:     base == 4.6.*,
                      hsoptions,
                      containers == 0.5.*,
