@@ -35,6 +35,7 @@ import Data.List
 import Data.Maybe
 import Text.Read(readMaybe)
 import System.Environment
+import System.Console.HsOptions.ConfParser
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -93,7 +94,6 @@ maybeParserWrapper _p (FlagValueMissing _) = Just Nothing
 maybeParserWrapper p flagValue = case p flagValue of
                                     Nothing -> Nothing
                                     justSomething -> Just justSomething
-
 
 emptyFlagResults :: Map.Map String FlagArgument
 emptyFlagResults = Map.empty

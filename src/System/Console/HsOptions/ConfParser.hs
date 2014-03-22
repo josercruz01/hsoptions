@@ -1,12 +1,13 @@
-module System.Console.HsOptions.ConfParser {-(
+module System.Console.HsOptions.ConfParser (
   parse,
   parseFromString,
 
   ConfParserError(..)
-) -}where
+) where
 
 import Data.Maybe
 import Data.Char (isSpace)
+import Control.Exception
 
 data ConfParserError = 
     ConfParserNonFatalError {-file-}String {-msg-}String 
@@ -28,8 +29,12 @@ instance Show (ConfParserError) where
   show (ConfParserNonFatalError name message) = errorToStr name message
   show (ConfParserFatalError name message) = errorToStr name message
 
-parse :: String -> Either [ConfParserError] [String]
-parse = undefined
+parse :: String -> IO (Either [ConfParserError] [String])
+parse filename = do fileResult <- try $ readFile filename :: IO (Either SomeException String)
+                    case fileResult of 
+                        Left except -> return (Left [ConfParserFatalError filename (show except)])
+                        Right content -> do let result = parseFromString filename content
+                                            return result
 
 trim :: String -> String
 trim = f . f
