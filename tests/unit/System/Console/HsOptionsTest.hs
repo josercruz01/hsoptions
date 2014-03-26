@@ -37,7 +37,8 @@ tests = [
     testFlagOperationWhitespace6,
     testFlagOperationWhitespace7,
     testHelpKeywordReserved,
-    testUsinfFileKeywordReserved
+    testUsingfFileKeywordReserved,
+    testEmptyFlagFollowedByFlag
   ]
 
 {- Flags -}
@@ -282,10 +283,16 @@ testHelpKeywordReserved = "The keyword 'help' is reserved" `unitTest`
      assertError pr "Error with flag '--help': The name is a reserved word and can not be used"
      assertSingleError pr
 
-testUsinfFileKeywordReserved :: UnitTest
-testUsinfFileKeywordReserved  = "The keyword 'usingFile' is reserved" `unitTest`
+testUsingfFileKeywordReserved :: UnitTest
+testUsingfFileKeywordReserved  = "The keyword 'usingFile' is reserved" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d usingFileFlag]
          pr = process flagData "--user_id 123"
      assertError pr "Error with flag '--usingFile': The name is a reserved word and can not be used"
      assertSingleError pr
 
+testEmptyFlagFollowedByFlag :: UnitTest
+testEmptyFlagFollowedByFlag = "A flag followed by another flag should have a value of 'empty'" `unitTest`
+  do let flagData = makeFlagData [f2d userLastName]
+         pr = process flagData "--user_last_name --user_last_name"
+     assertError pr "Error with flag '--user_last_name': Flag value was not provided"
+     assertSingleError pr

@@ -64,7 +64,7 @@ flagOperation = try operation <|> do void space <|> eof
                                      return OperationTokenAssign
 
 flagValue :: GenParser Char st FlagValueToken
-flagValue = (try (flagName >> fail "") >> return FlagValueTokenEmpty) <|> 
+flagValue = (try flagName >> return FlagValueTokenEmpty) <|> 
             (do arg <- argument; return (FlagValueToken arg)) <|>
             return FlagValueTokenEmpty
 

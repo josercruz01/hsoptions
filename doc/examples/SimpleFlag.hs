@@ -4,7 +4,8 @@ import qualified Greeter as Greeter
 
 {- Begin Flag definitions -}
 userIdFlag :: Flag Int
-userIdFlag = make ("user_id", "the user id of the app", [parser intParser])
+userIdFlag = make ("user_id", "the user id of the app", [parser intParser,
+                                                         aliasIs ["u"]])
 
 description :: String
 description = "Simple Haskell program\n" ++
@@ -13,6 +14,7 @@ description = "Simple Haskell program\n" ++
 database :: Flag (Maybe String)
 database = make ("database", "database connection string. required if user_id == -1",
     maybeParser stringParser:
+    aliasIs ["db"]:
     requiredIf (\ fr -> get fr userIdFlag == -1))
 
 tellJoke :: Flag Bool
