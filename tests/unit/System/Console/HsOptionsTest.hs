@@ -35,7 +35,9 @@ tests = [
     testFlagOperationWhitespace4,
     testFlagOperationWhitespace5,
     testFlagOperationWhitespace6,
-    testFlagOperationWhitespace7
+    testFlagOperationWhitespace7,
+    testHelpKeywordReserved,
+    testUsinfFileKeywordReserved
   ]
 
 {- Flags -}
@@ -47,6 +49,13 @@ userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser
 
 help :: HSO.Flag (Maybe Bool)
 help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
+                                           HSO.isOptional])
+
+usingFileFlag :: HSO.Flag String
+usingFileFlag  = HSO.make ("usingFile", "usingFile_helptext", [HSO.parser HSO.stringParser])
+
+customHelp :: HSO.Flag (Maybe Bool)
+customHelp = HSO.make ("custom_help", "customHelp_helptext", [HSO.maybeParser HSO.boolParser, 
                                            HSO.isOptional])
 
 userLastName :: HSO.Flag (Maybe String)
@@ -77,14 +86,14 @@ testMissingFlagError :: UnitTest
 testMissingFlagError  = "Missing flag should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d userName]
          pr = process flagData "--user_id 123"
-     assertNonFatalError pr "Error with flag '--user_name': Flag is required"
+     assertError pr "Error with flag '--user_name': Flag is required"
      assertSingleError pr
 
 testInvalidFlagError :: UnitTest
 testInvalidFlagError = "Invalid flag type should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123abc"
-     assertNonFatalError pr "Error with flag '--user_id': Value '123abc' is not valid"
+     assertError pr "Error with flag '--user_id': Value '123abc' is not valid"
      assertSingleError pr
 
 testFlagWithNoNameError :: UnitTest
@@ -119,20 +128,20 @@ testFlagNotDefined :: UnitTest
 testFlagNotDefined = "A passed in flag not defined in the code should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id 123 --user_name bender"
-     assertNonFatalError pr "Error with flag '--user_name': Unkown flag is not defined in the code"
+     assertError pr "Error with flag '--user_name': Unkown flag is not defined in the code"
      assertSingleError pr
 
 testMissingOptionalFlag :: UnitTest
 testMissingOptionalFlag = "A missing optional flag should set to Nothing" `unitTest`
-  do let flagData = makeFlagData [f2d userId, f2d help]
+  do let flagData = makeFlagData [f2d userId, f2d customHelp]
          pr = process flagData "--user_id 123"
-     assertFlagValueEquals pr help Nothing
+     assertFlagValueEquals pr customHelp Nothing
 
 testOptionalFlagMissingValue :: UnitTest
 testOptionalFlagMissingValue = "An optional flag without value should report error" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d userLastName]
          pr = process flagData "--user_id 123 --user_last_name"
-     assertNonFatalError pr "Error with flag '--user_last_name': Flag value was not provided"
+     assertError pr "Error with flag '--user_last_name': Flag value was not provided"
      assertSingleError pr
 
 testOptionalFlagCorrectValue :: UnitTest
@@ -144,9 +153,9 @@ testOptionalFlagCorrectValue = "An optional flag with correct value should work 
 
 testOptionalFlagIncorrectValue :: UnitTest
 testOptionalFlagIncorrectValue = "An optional flag with incorrect value should report error" `unitTest`
-  do let flagData = makeFlagData [f2d userId, f2d help]
-         pr = process flagData "--user_id 123 --help blah"
-     assertNonFatalError pr "Error with flag '--help': Value 'blah' is not valid"
+  do let flagData = makeFlagData [f2d userId, f2d customHelp]
+         pr = process flagData "--user_id 123 --custom_help blah"
+     assertError pr "Error with flag '--custom_help': Value 'blah' is not valid"
      assertSingleError pr
 
 testMissingBoolFlagIsFalse :: UnitTest
@@ -174,7 +183,7 @@ testRequiredIfRequired :: UnitTest
 testRequiredIfRequired = "A requiredIf flag that returns true on the predicate should be required" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d database]
          pr = process flagData "--user_id 4444"
-     assertNonFatalError pr "Error with flag '--database': Flag is required"
+     assertError pr "Error with flag '--database': Flag is required"
      assertSingleError pr
 
 testRequiredIfRequiredButProvided :: UnitTest
@@ -188,14 +197,14 @@ testRequiredIfRequiredButMissing :: UnitTest
 testRequiredIfRequiredButMissing = "A requiredIf flag with missing value should report error " `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d database]
          pr = process flagData "--user_id 4444 --database "
-     assertNonFatalError pr "Error with flag '--database': Flag value was not provided"
+     assertError pr "Error with flag '--database': Flag value was not provided"
      assertSingleError pr
 
 testGlobalValidationOccursAtTheEnd :: UnitTest
 testGlobalValidationOccursAtTheEnd  = "Global validation should not execute if local validation failed" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d database]
          pr = process flagData ""
-     assertNonFatalError pr "Error with flag '--user_id': Flag is required"
+     assertError pr "Error with flag '--user_id': Flag is required"
      assertSingleError pr
 
 
@@ -265,3 +274,18 @@ testFlagOperationWhitespace7 = "Whitespace between flag/value scenario 7" `unitT
   do let flagData = makeFlagData [f2d userId]
          pr = process flagData "--user_id\t\n=\t\n123"
      assertFlagValueEquals pr userId 123
+
+testHelpKeywordReserved :: UnitTest
+testHelpKeywordReserved = "The keyword 'help' is reserved" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d help]
+         pr = process flagData "--user_id 123"
+     assertError pr "Error with flag '--help': The name is a reserved word and can not be used"
+     assertSingleError pr
+
+testUsinfFileKeywordReserved :: UnitTest
+testUsinfFileKeywordReserved  = "The keyword 'usingFile' is reserved" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d usingFileFlag]
+         pr = process flagData "--user_id 123"
+     assertError pr "Error with flag '--usingFile': The name is a reserved word and can not be used"
+     assertSingleError pr
+

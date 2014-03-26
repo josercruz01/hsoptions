@@ -38,6 +38,7 @@ import Text.Read(readMaybe)
 import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
+import Text.Regex.Posix
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -71,6 +72,18 @@ data FlagDataConf =
   | FlagDataConf_RequiredIf  (FlagResults -> Bool)
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
+
+flagErrorMessage :: String -> String -> String
+flagErrorMessage name msg = "Error with flag '--" ++ name ++ "': " ++ msg
+
+usingFileKeyword :: [String]
+usingFileKeyword = ["usingFile"]
+
+helpKeyword :: [String]
+helpKeyword = ["help", "h"]
+
+reservedWords :: [String]
+reservedWords = usingFileKeyword ++ helpKeyword
 
 isOptional :: FlagConf (Maybe a)
 isOptional = FlagConf_IsOptional
@@ -196,7 +209,10 @@ process fd args = do result <- tokenize (unwords args)
                       Right toks -> return (process' fd toks)
 
 process' :: FlagData -> [Token] -> Either [FlagError] ProcessResults
-process' fd args = case pipeline [addMissingFlags, validateUnknownFlags, validateFlagParsers]
+process' fd args = case pipeline [validateReservedWords,
+                                  addMissingFlags, 
+                                  validateUnknownFlags, 
+                                  validateFlagParsers]
                                  [validateGlobal]
                                  fd
                                  flagResults of
@@ -205,8 +221,8 @@ process' fd args = case pipeline [addMissingFlags, validateUnknownFlags, validat
   where (flagResults, argsResults) = parseArgs args (emptyFlagResults, emptyArgsResults)
 
 anyArgIsHelp :: [String] -> Bool
-anyArgIsHelp args = elem "--help" args ||
-                    elem "-h" args
+anyArgIsHelp args = any aux helpKeyword
+  where aux kw = any (\s -> s=~ ("--?" ++ kw ++"$)")  :: Bool) args
 
 processMain :: String -> -- program description
                FlagData -> -- flags
@@ -241,6 +257,14 @@ pipeline' (v:vs) fd fr = case v fd fr of
                    else let (errs'', fr'') = pipeline' vs fd fr' in 
                         (errs ++ errs'', fr'')
 
+validateReservedWords :: PipelineFunction
+validateReservedWords fd fr = case reservedWords `intersect` codeFlags of
+                                  [] -> ([], fr)
+                                  names -> (map reservedWordsError names, fr)
+  where codeFlags = Map.keys fd
+        reservedWordsError name = FlagFatalError $ flagErrorMessage name 
+                                                   "The name is a reserved word and can not be used"
+
 addMissingFlags :: PipelineFunction
 addMissingFlags fd  fr = ([], fr `Map.union` Map.fromList flags)
   where inputFlags = Map.keys fr
@@ -254,9 +278,7 @@ validateUnknownFlags fd fr = (errors, fr)
         codeFlags = Map.keys fd
         missingFlags = inputFlags \\ codeFlags
         errors = map flagUnkownError missingFlags
-        flagUnkownError name = FlagNonFatalError $ "Error with flag '--" ++
-                               name ++
-                               "': Unkown flag is not defined in the code"
+        flagUnkownError name = FlagNonFatalError $ flagErrorMessage name "Unkown flag is not defined in the code"
 
 validateFlagParsers :: PipelineFunction
 validateFlagParsers fd fr = (mapMaybe aux (Map.toList fd), fr)
@@ -320,7 +342,7 @@ runDValidator fdc = validator
   where validator = head [x | (FlagDataConf_Validator x) <- fdc]
 
 validationError :: String -> String -> ValidationResult
-validationError name s = ValidationError $ FlagNonFatalError ("Error with flag '--" ++name ++ "': " ++ s)
+validationError name s = ValidationError $ FlagNonFatalError (flagErrorMessage name s)
 
 checkValidator :: [FlagDataConf] -> FlagArgument -> ValidationResult
 checkValidator fdc (FlagMissing name) 

@@ -19,13 +19,13 @@ errorsToString  (er:errs) = aux er ++ errorsToString errs
   where aux (HSO.FlagNonFatalError erMessage) = " * '" ++ erMessage ++ "'\n"
         aux (HSO.FlagFatalError erMessage) = " * '" ++erMessage ++ "'\n"
 
-assertNonFatalError :: TestProcessResult -> String -> Assertion
-assertNonFatalError (TestProcessSuccess _) errorMessage = 
-  assertFailure $ "assertNonFatalError failed. expected '" ++ errorMessage ++ "' but zero errors occurred"
-assertNonFatalError (TestProcessError errs) errorMessage = 
-  let nfErrs = [er | (HSO.FlagNonFatalError er) <- errs] in
+assertError :: TestProcessResult -> String -> Assertion
+assertError (TestProcessSuccess _) errorMessage = 
+  assertFailure $ "assertError failed. expected '" ++ errorMessage ++ "' but zero errors occurred"
+assertError (TestProcessError errs) errorMessage = 
+  let nfErrs = [er | (HSO.FlagNonFatalError er) <- errs] ++ [er | (HSO.FlagFatalError er) <- errs]in
   when ( errorMessage `notElem` nfErrs)
-    (assertFailure $ "assertNonFatalError failed. expected '" ++ 
+    (assertFailure $ "assertError failed. expected '" ++ 
                        errorMessage ++ 
                        "' but error not found.\n" ++
                        "** other errors that where found:\n" ++ 
