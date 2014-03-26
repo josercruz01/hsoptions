@@ -144,7 +144,12 @@ runParser fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
 runParser fc arg = runRealParser fc arg
 
 combine :: [FlagData] -> FlagData
-combine = foldl Map.union Map.empty
+combine = foldl auxUnion Map.empty
+  where auxUnion m1 m2 = case Map.keys m1 `intersect` Map.keys m2 of
+                             [] -> m1 `Map.union` m2
+                             flags -> error ("Duplicate flag names: " ++
+                                             "The following flags names are duplicated in the code " ++ 
+                                             show flags)
 
 flagToData :: Flag a -> FlagData
 flagToData (Flag name help flagConf) = Map.fromList [(name, (help, flagDataConf))]
@@ -305,7 +310,7 @@ requiredIfValidator _fdc _fr _flagArg = ValidationSuccess
 make :: (String, String, [FlagConf a]) -> Flag a
 make (name, help, flagConf) = if hasParser 
                               then Flag name help flagConf
-                              else error ("Flag parser was not provided for flag --'" ++ name ++ "'")
+                              else error (flagErrorMessage name "Flag parser was not provided")
   where hasParser = not . null $ [x | (FlagConf_Parser x) <- flagConf]
 
 defaultDisplayHelp :: String -> [(String, String)] -> IO ()
