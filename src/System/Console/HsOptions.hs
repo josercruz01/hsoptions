@@ -11,6 +11,7 @@ module System.Console.HsOptions(
     flagToData,
     combine,
     process,
+    process',
     processMain,
     defaultDisplayHelp,
 
@@ -35,7 +36,8 @@ import Data.List
 import Data.Maybe
 import Text.Read(readMaybe)
 import System.Environment
-import System.Console.HsOptions.ConfParser
+import System.Console.HsOptions.Parser
+import Control.Exception
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -50,6 +52,7 @@ type PipelineFunction = (FlagData -> FlagResults -> ([FlagError], FlagResults))
 data FlagArgument = FlagMissing String 
                   | FlagValueMissing String
                   | FlagValue String String
+                  deriving (Show)
 
 data ValidationResult = ValidationError FlagError
                       | ValidationSuccess 
@@ -101,9 +104,6 @@ emptyFlagResults = Map.empty
 emptyArgsResults :: [String]
 emptyArgsResults = []
 
-isNumeric :: String -> Bool
-isNumeric s = isJust (readMaybe s :: Maybe Integer) || 
-              isJust (readMaybe s :: Maybe Double) 
 
 get :: FlagResults -> Flag a ->  a
 get result (Flag name _ flagconf) = fromJust $ runParser flagconf argValue
@@ -142,54 +142,67 @@ flagToData (Flag name help flagConf) = Map.fromList [(name, (help, flagDataConf)
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
 
-isFlagName :: String -> Bool
-isFlagName "-" = False
-isFlagName "--" = False
-isFlagName name 
-  | take 2 name == "--" = True
-  | take 1 name == "-" && (not . isNumeric) (drop 1 name) = True
-  | otherwise = False
+executeOp :: ParseResults -> (String, OperationToken, FlagValueToken) -> FlagResults
+executeOp _state (name, _op, FlagValueTokenEmpty) = Map.fromList [(name, FlagValueMissing name)]
+executeOp _state (name, _op, FlagValueToken value) = Map.fromList [(name, FlagValue name value)]
 
-getFlagName :: String -> String
-getFlagName name 
-  | take 2 name == "--" = drop 2 name
-  | otherwise = drop 1 name
+parseToken :: (ParseResults, Token) -> ParseResults
+parseToken (state, FlagToken name op value) = (executeOp state (name, op, value), [])
+parseToken (_, ArgToken arg) = (emptyFlagResults, [arg])
 
-makeFlagResults :: (String, FlagArgument) -> ParseResults 
-makeFlagResults flagArg = (Map.fromList [flagArg], emptyArgsResults)
+parseArgs :: [Token] -> ParseResults -> ParseResults
+parseArgs [] state = state
+parseArgs (tok:toks) state = parseArgs toks (state `mergeParseResults` res)
+  where res = parseToken (state, tok)
 
-processFlag ::  String -> [String] -> (ParseResults, [String])
-processFlag name [] = (makeFlagResults (name, FlagValueMissing name), [])
-processFlag name (arg2:args)
-    | isFlagName arg2 = (makeFlagResults (name, FlagValueMissing name), arg2:args)
-    | otherwise = (makeFlagResults (name, FlagValue name arg2), args)
+mergeParseResults :: ParseResults -> ParseResults -> ParseResults
+mergeParseResults (fr1, args1) (fr2, args2) = (fr2 `Map.union` fr1, args1 ++ args2)
 
-parseArg ::  String -> [String] -> (ParseResults, [String])
-parseArg arg args = 
-  if isFlagName arg
-    then processFlag (getFlagName arg) args
-    else ((emptyFlagResults, [arg]), args) 
+type TokenizeResult = Either [FlagError] [Token]
 
-parseArgs ::  [String] -> ParseResults -> ParseResults
-parseArgs arguments res = case arguments of
-    [] -> res
-    arg:args -> let (res',args') = parseArg arg args in 
-                parseArgs args' (merge res res')
-  where merge (pr1, args1) (pr2, args2) = ( pr1 `Map.union` pr2, args1 ++ args2)
-        
+concatToks :: TokenizeResult -> TokenizeResult -> TokenizeResult
+concatToks (Left errs) (Left errs2) = Left (errs ++ errs2)
+concatToks (Left errs) _ = Left errs
+concatToks _ (Left errs) = Left errs
+concatToks (Right toks1) (Right toks2) = Right (toks1 ++ toks2)
 
-process :: FlagData -> [String] -> Either [FlagError] ProcessResults
-process fd args = case pipeline [addMissingFlags,
-                                 validateUnknownFlags,
-                                 validateFlagParsers]
-                             fd
-                             flagResults of
-    ([],res) -> case validateGlobal fd res of 
-                  ([], res') -> Right (res', argsResults)
-                  (errs, _) -> Left errs
-    (errs,_) -> Left errs
+parseConfigFile :: String -> IO TokenizeResult
+parseConfigFile filename = 
+  do fileResult <- try $ readFile filename :: IO (Either SomeException String)
+     case fileResult of 
+         Left except -> return (Left [FlagFatalError ("Error on '" ++ filename  ++ "': " ++ show except)])
+         Right content -> tokenize content
+
+isUsingConfFlag :: Token -> Maybe String
+isUsingConfFlag (FlagToken "usingFile" _ (FlagValueToken filename)) = Just filename
+isUsingConfFlag _ = Nothing
+
+includeConfig :: [Token] -> IO TokenizeResult
+includeConfig [] = return (Right [])
+includeConfig (t:ts) = case isUsingConfFlag t of
+                          Nothing -> do restToks <- includeConfig ts
+                                        return (Right [t] `concatToks` restToks)
+                          Just conf -> do confToks <- parseConfigFile conf
+                                          restToks <- includeConfig ts
+                                          return (confToks `concatToks` restToks)
+
+tokenize :: String -> IO TokenizeResult
+tokenize input = includeConfig (parseInput input)
+
+process :: FlagData -> [String] -> IO (Either [FlagError] ProcessResults)
+process fd args = do result <- tokenize (unwords args)
+                     case result of
+                      Left errs -> return (Left errs)
+                      Right toks -> return (process' fd toks)
+
+process' :: FlagData -> [Token] -> Either [FlagError] ProcessResults
+process' fd args = case pipeline [addMissingFlags, validateUnknownFlags, validateFlagParsers]
+                                 [validateGlobal]
+                                 fd
+                                 flagResults of
+                      ([],res) -> Right (res, argsResults)
+                      (errs,_) -> Left errs
   where (flagResults, argsResults) = parseArgs args (emptyFlagResults, emptyArgsResults)
-
 
 anyArgIsHelp :: [String] -> Bool
 anyArgIsHelp args = elem "--help" args ||
@@ -205,19 +218,28 @@ processMain desc fd success failure displayHelp =
     do args <- getArgs 
        if anyArgIsHelp args 
           then displayHelp desc (getFlagHelp fd)
-          else either failure success (process fd args)
+          else do result <- process fd args 
+                  case result of 
+                      Left errs -> failure errs
+                      Right res -> success res
 
 hasFatalError :: [FlagError] -> Bool
 hasFatalError errs = not . null $ [x | x@(FlagFatalError _) <- errs]
 
-pipeline :: [PipelineFunction] -> PipelineFunction
-pipeline [] _fd fr = ([], fr)
-pipeline (v:vs) fd fr = case v fd fr of 
-    ([], fr') -> pipeline vs fd fr' 
+pipeline :: [PipelineFunction] -> [PipelineFunction] -> PipelineFunction
+pipeline validation1 validation2 fd fr = 
+  case pipeline' validation1 fd fr of
+    ([], res) -> pipeline' validation2 fd res
+    errs -> errs
+
+pipeline' :: [PipelineFunction] -> PipelineFunction
+pipeline' [] _fd fr = ([], fr)
+pipeline' (v:vs) fd fr = case v fd fr of 
+    ([], fr') -> pipeline' vs fd fr' 
     (errs, fr') -> if hasFatalError errs 
                    then (errs, fr')
-                   else let (errs'', fr'') = pipeline vs fd fr' in 
-                        (errs ++ errs'', fr' `Map.union` fr'')
+                   else let (errs'', fr'') = pipeline' vs fd fr' in 
+                        (errs ++ errs'', fr'')
 
 addMissingFlags :: PipelineFunction
 addMissingFlags fd  fr = ([], fr `Map.union` Map.fromList flags)

@@ -24,7 +24,18 @@ tests = [
     testRequiredIfRequired,
     testRequiredIfRequiredButProvided,
     testRequiredIfRequiredButMissing,
-    testRequiredIfRequiredButMissing 
+    testGlobalValidationOccursAtTheEnd,
+    testOperationEquals,
+    testOperationAppend,
+    testOrderOfFlags,
+    testOrderOfArgs,
+    testFlagOperationWhitespace1,
+    testFlagOperationWhitespace2,
+    testFlagOperationWhitespace3,
+    testFlagOperationWhitespace4,
+    testFlagOperationWhitespace5,
+    testFlagOperationWhitespace6,
+    testFlagOperationWhitespace7
   ]
 
 {- Flags -}
@@ -187,3 +198,70 @@ testGlobalValidationOccursAtTheEnd  = "Global validation should not execute if l
      assertNonFatalError pr "Error with flag '--user_id': Flag is required"
      assertSingleError pr
 
+
+testOperationEquals :: UnitTest
+testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id = 123"
+     assertFlagValueEquals pr userId 123
+
+-- todo: Append operation not yet implemented
+testOperationAppend :: UnitTest
+testOperationAppend   = "Append operation should be parsed correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 100 --user_id += 123"
+     assertFlagValueEquals pr userId 123
+
+testOrderOfFlags :: UnitTest
+testOrderOfFlags = "Last flag should override value of previous" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id 123 a b c --user_id 222"
+     assertFlagValueEquals pr userId 222
+
+testOrderOfArgs :: UnitTest
+testOrderOfArgs = "Order of command line arguments must be preserved" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "a b --user_id 123 c d --user_id 222 e f"
+     assertArgsEquals pr ["a", "b", "c", "d", "e", "f"]
+
+testFlagOperationWhitespace1 :: UnitTest
+testFlagOperationWhitespace1 = "Whitespace between flag/value scenario 1" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id = 123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace2 :: UnitTest
+testFlagOperationWhitespace2 = "Whitespace between flag/value scenario 2" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id= 123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace3 :: UnitTest
+testFlagOperationWhitespace3 = "Whitespace between flag/value scenario 3" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id =123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace4 :: UnitTest
+testFlagOperationWhitespace4 = "Whitespace between flag/value scenario 4" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id=123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace5 :: UnitTest
+testFlagOperationWhitespace5 = "Whitespace between flag/value scenario 5" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id\t\n=123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace6 :: UnitTest
+testFlagOperationWhitespace6 = "Whitespace between flag/value scenario 6" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id=\t\n123"
+     assertFlagValueEquals pr userId 123
+
+testFlagOperationWhitespace7 :: UnitTest
+testFlagOperationWhitespace7 = "Whitespace between flag/value scenario 7" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--user_id\t\n=\t\n123"
+     assertFlagValueEquals pr userId 123

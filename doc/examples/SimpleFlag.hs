@@ -39,10 +39,11 @@ main_errors errors = do
 
 {- Function to be executed if there was no errors parsing the flags -}
 main_success :: ProcessResults -> IO ()
-main_success (flagResults, _argsResults) = 
+main_success (flagResults, argsResults) = 
    do let userId = get flagResults userIdFlag
           db = get flagResults database
 
+      putStrLn $ "Main.hs: Args: " ++ show argsResults
       putStrLn $ "Main.hs: User id: " ++ show userId
       putStrLn $ "Main.hs: Database: " ++ show db
 

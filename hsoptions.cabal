@@ -16,10 +16,11 @@ cabal-version:       >=1.8
 library
   exposed-modules:
     System.Console.HsOptions
-    System.Console.HsOptions.ConfParser
+    System.Console.HsOptions.Parser
   -- other-modules:
   build-depends:     base == 4.6.*,
-                     containers == 0.5.*
+                     containers == 0.5.*,
+                     parsec == 3.1.*
   hs-source-dirs:    src
   ghc-options:       -Wall
 
@@ -33,6 +34,7 @@ test-suite unit-tests
   build-depends:     base == 4.6.*,
                      hsoptions,
                      containers == 0.5.*,
+                     parsec == 3.1.*,
                      HUnit >=1.2 && <2,
                      QuickCheck >=2.4 && <=2.7,
                      test-framework == 0.8.*,
