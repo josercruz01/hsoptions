@@ -37,6 +37,7 @@ tests = [
     testFlagOperationWhitespace6,
     testFlagOperationWhitespace7,
     testHelpKeywordReserved,
+    testHelpKeywordReservedOnAlias,
     testUsingfFileKeywordReserved,
     testEmptyFlagFollowedByFlag
   ]
@@ -51,6 +52,12 @@ userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser
 help :: HSO.Flag (Maybe Bool)
 help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
                                            HSO.isOptional])
+
+helpOnAlias :: HSO.Flag (Maybe Bool)
+helpOnAlias = HSO.make ("not_help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
+                                                      HSO.isOptional,
+                                                      HSO.aliasIs ["help"]])
+
 
 usingFileFlag :: HSO.Flag String
 usingFileFlag  = HSO.make ("usingFile", "usingFile_helptext", [HSO.parser HSO.stringParser])
@@ -278,6 +285,13 @@ testFlagOperationWhitespace7 = "Whitespace between flag/value scenario 7" `unitT
 
 testHelpKeywordReserved :: UnitTest
 testHelpKeywordReserved = "The keyword 'help' is reserved" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d help]
+         pr = process flagData "--user_id 123"
+     assertError pr "Error with flag '--help': The name is a reserved word and can not be used"
+     assertSingleError pr
+
+testHelpKeywordReservedOnAlias :: UnitTest
+testHelpKeywordReservedOnAlias = "The keyword 'help' is reserved on alias" `unitTest`
   do let flagData = makeFlagData [f2d userId, f2d help]
          pr = process flagData "--user_id 123"
      assertError pr "Error with flag '--help': The name is a reserved word and can not be used"
