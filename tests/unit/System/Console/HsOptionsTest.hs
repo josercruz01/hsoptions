@@ -41,7 +41,9 @@ tests = [
     testUsingfFileKeywordReserved,
     testEmptyFlagFollowedByFlag,
     testFlagAlias,
-    testFlagAliasIncorrectValue
+    testFlagAliasIncorrectValue,
+    testFlagDeclaredWithInvalidName, 
+    testFlagDeclaredWithInvalidName2 
   ]
 
 {- Flags -}
@@ -84,6 +86,12 @@ database = HSO.make ("database",
 
 dryRun :: HSO.Flag Bool
 dryRun = HSO.make ("dry_run", "dryrun_helptext", HSO.boolFlag)
+
+invalidFlag1 :: HSO.Flag Bool
+invalidFlag1 = HSO.make ("1dry_run", "invalid1", HSO.boolFlag)
+
+invalidFlag2 :: HSO.Flag Bool
+invalidFlag2 = HSO.make ("dry_run ", "invalid1", HSO.boolFlag)
 
 {- Test methods -}
 
@@ -326,6 +334,18 @@ testFlagAliasIncorrectValue = "Valid flag alias with invalid value should report
          pr = process flagData "--uid blah"
      assertError pr "Error with flag '--user_id': Value 'blah' is not valid"
      assertSingleError pr
+
+testFlagDeclaredWithInvalidName :: UnitTest
+testFlagDeclaredWithInvalidName  = "A flag defined on the code with invalid name should report error" `unitTest`
+  do let flagData1 = makeFlagData [f2d invalidFlag1]
+         errorMsg = "Error: The following flags names are invalid [\"1dry_run\"]"
+     assertFlagDataException flagData1 errorMsg
+
+testFlagDeclaredWithInvalidName2 :: UnitTest
+testFlagDeclaredWithInvalidName2  = "A flag defined on the code with invalid name should report error" `unitTest`
+  do let flagData1 = makeFlagData [f2d invalidFlag2]
+         errorMsg = "Error: The following flags names are invalid [\"dry_run \"]"
+     assertFlagDataException flagData1 errorMsg
 
 {-# ANN module "HLint: ignore Reduce duplication" #-}
 {-# ANN module "HLint: ignore Use camelCase" #-}

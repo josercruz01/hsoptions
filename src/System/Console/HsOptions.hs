@@ -39,6 +39,7 @@ import Text.Read(readMaybe)
 import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
+import Text.Regex.Posix
 import qualified System.Console.GetOpt as Opt
 import qualified Data.Map as Map
 
@@ -167,14 +168,27 @@ combine = foldl auxUnion (Map.empty, Map.empty)
                                         
 
 flagToData :: Flag a -> FlagData
-flagToData (Flag name help flagConf) = (Map.fromList [(name, (help, flagDataConf))], Map.fromList alias)
-  where alias = map (\s -> (s, name)) (flagAlias flagConf)
+flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
+                                                Nothing -> result
+                                                Just err -> error err
+  where result = (Map.fromList [(name, (help, flagDataConf))], Map.fromList alias)
+        alias = map (\s -> (s, name)) (flagAlias flagConf)
         flagDataConf = map aux flagConf
         aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
         aux (FlagConf_RequiredIf predicate) = FlagDataConf_RequiredIf predicate
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
         aux (FlagConf_Alias as) = FlagDataConf_Alias as
+
+        invalidFlag (Flag name _ fc) = if null invalidFlags
+                                       then Nothing
+                                       else Just ("Error: The following flags names are invalid " ++ 
+                                                  show invalidFlags)
+            where aliasList = flagAlias fc
+                  allNames = name:aliasList
+                  invalidFlags = [n | n <- allNames, invalidFlagName n]
+                  invalidFlagName :: String -> Bool
+                  invalidFlagName s = not (s =~ "^[a-zA-Z][a-zA-Z0-9\\-_]*$" :: Bool)
 
 fromAliasMaybe :: FlagAliasMap -> String -> String
 fromAliasMaybe alias s = fromMaybe s (Map.lookup s alias)

@@ -3,6 +3,7 @@ where
 
 import Test.HUnit
 import Control.Monad
+import Control.Exception
 import qualified System.Console.HsOptions as HSO
 import qualified System.Console.HsOptions.Parser as Parser
 
@@ -56,6 +57,13 @@ assertArgsEquals (TestProcessError errs) _args =
                 "** errors that where found:\n" ++ 
                 errorsToString errs)
 assertArgsEquals (TestProcessSuccess (_results, args)) expected = assertEqual "" expected args 
+
+
+assertFlagDataException :: HSO.FlagData -> String -> Assertion
+assertFlagDataException fd msg = do result <- try (evaluate fd) :: IO (Either SomeException HSO.FlagData)
+                                    case result of
+                                        Left err -> assertEqual "" msg (show err)
+                                        Right _ -> fail "Expected exception but no exception occurred"
 
 process :: HSO.FlagData -> String -> TestProcessResult
 process fd input = case HSO.process' fd args of
