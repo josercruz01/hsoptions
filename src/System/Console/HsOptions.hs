@@ -39,6 +39,7 @@ import Text.Read(readMaybe)
 import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
+import qualified System.Console.GetOpt as Opt
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -134,6 +135,9 @@ flagDefault fc = listToMaybe [ x | (FlagConf_DefaultIs x) <- fc]
 flagAlias :: [FlagConf a] -> [String]
 flagAlias fc = concat [ x | (FlagConf_Alias x) <- fc]
 
+flagDAlias :: [FlagDataConf] -> [String]
+flagDAlias fc = concat [ x | (FlagDataConf_Alias x) <- fc]
+
 flagEmptyValue :: [FlagConf a] -> Maybe a
 flagEmptyValue fc = listToMaybe [ x | (FlagConf_EmptyValueIs x) <- fc]
 
@@ -170,7 +174,7 @@ flagToData (Flag name help flagConf) = (Map.fromList [(name, (help, flagDataConf
         aux (FlagConf_RequiredIf predicate) = FlagDataConf_RequiredIf predicate
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
-        aux (FlagConf_Alias a) = FlagDataConf_Alias a
+        aux (FlagConf_Alias as) = FlagDataConf_Alias as
 
 fromAliasMaybe :: FlagAliasMap -> String -> String
 fromAliasMaybe alias s = fromMaybe s (Map.lookup s alias)
@@ -254,7 +258,7 @@ processMain :: String -> -- program description
                FlagData -> -- flags
                (ProcessResults -> IO ()) ->  -- success function. run program
                ([FlagError] -> IO ()) -> -- failure function. show errors
-               (String -> [(String, String)] -> IO ()) -> -- help display function
+               (String -> [(String, [String], String)] -> IO ()) -> -- help display function
                IO () 
 processMain desc fd success failure displayHelp = 
     do args <- getArgs 
@@ -340,19 +344,20 @@ make (name, help, flagConf) = if hasParser
                               else error (flagErrorMessage name "Flag parser was not provided")
   where hasParser = not . null $ [x | (FlagConf_Parser x) <- flagConf]
 
-defaultDisplayHelp :: String -> [(String, String)] -> IO ()
-defaultDisplayHelp desc flags = do 
-  putStrLn desc
-  putStrLn ""
-  putStrLn "Usage:"
-  putStrLn ""
-  mapM_ aux flags
-  where aux (name, help) = putStrLn $ name ++ ":\t\t" ++ help
+defaultDisplayHelp :: String -> [(String, [String], String)] -> IO ()
+defaultDisplayHelp desc flags = putStrLn $ Opt.usageInfo desc (map getOptDescr flags)
+  where getShortName = foldl (\ (s, l) current -> if length current == 1 
+                                                  then (s ++ [head current], l)
+                                                  else (s, l ++ [current])) ([], [])
 
-getFlagHelp :: FlagData -> [(String, String)]
+        getOptDescr (name, alias, help) = Opt.Option short (name:long) (Opt.NoArg "") help
+          where (short, long) = getShortName alias
+        
+
+getFlagHelp :: FlagData -> [(String, [String], String)]
 getFlagHelp (fd, _aliasMap) = let flags = Map.toList fd in
-                 map (\ (name, (help, _)) -> (name, help)) flags ++ 
-                     [("help", "show this help")]
+                 map (\ (name, (help, flagDataConf)) -> (name, flagDAlias flagDataConf, help)) flags ++ 
+                     [("help", ["h"] ,"show this help")]
 
 flagDIsOptional :: [FlagDataConf] -> Bool
 flagDIsOptional fdc = not . null $ [True | (FlagDataConf_RequiredIf _) <- fdc] 
