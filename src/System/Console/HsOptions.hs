@@ -171,7 +171,7 @@ flagToData :: Flag a -> FlagData
 flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
                                                 Nothing -> result
                                                 Just err -> error err
-  where result = (Map.fromList [(name, (help, flagDataConf))], Map.fromList alias)
+  where result = (Map.singleton name (help, flagDataConf), Map.fromList alias)
         alias = map (\s -> (s, name)) (flagAlias flagConf)
         flagDataConf = map aux flagConf
         aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
@@ -194,8 +194,26 @@ fromAliasMaybe :: FlagAliasMap -> String -> String
 fromAliasMaybe alias s = fromMaybe s (Map.lookup s alias)
 
 executeOp :: ParseResults -> (String, OperationToken, FlagValueToken) -> FlagResults
-executeOp _state (name, _op, FlagValueTokenEmpty) = Map.fromList [(name, FlagValueMissing name)]
-executeOp _state (name, _op, FlagValueToken value) = Map.fromList [(name, FlagValue name value)]
+
+executeOp _st (name, OperationTokenAssign, FlagValueToken value) = result
+  where result = Map.singleton name (FlagValue name value)
+
+executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = result
+  where result = Map.singleton name (FlagValueMissing name)
+
+executeOp (fr, _) (name, OperationTokenAppend, FlagValueToken value) = result
+  where result = Map.singleton name (FlagValue name (previous ++ value))
+        previous = case Map.lookup name fr of
+                      Just (FlagValue _ v) -> v
+                      _ -> ""
+
+executeOp (fr, _) (name, OperationTokenAppend, FlagValueTokenEmpty) = result
+  where result = Map.singleton name value
+        value = case Map.lookup name fr of
+                  Just fv@(FlagValue _ _) -> fv
+                  _ -> FlagValueMissing name
+
+
 
 parseToken :: (ParseResults, Token) -> ParseResults
 parseToken (state, FlagToken name op value) = (executeOp state (name, op, value), [])

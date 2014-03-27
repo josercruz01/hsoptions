@@ -49,7 +49,9 @@ tests = [
     testFlagDeclaredWithInvalidName2,
     testIncludeSingleFile,
     testConfFileComments,
-    testConfFileHierarchy
+    testConfFileHierarchy,
+    testFlagAppendWithNoPrev,
+    testFlagAppendWithNoValue 
   ]
 
 {- Flags -}
@@ -239,12 +241,11 @@ testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
      pr <- process flagData "--user_id = 123"
      assertFlagValueEquals pr userId 123
 
--- todo: Append operation not yet implemented
 testOperationAppend :: UnitTest
 testOperationAppend   = "Append operation should be parsed correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
      pr <- process flagData "--user_id 100 --user_id += 123"
-     assertFlagValueEquals pr userId 123
+     assertFlagValueEquals pr userId 100123
 
 testOrderOfFlags :: UnitTest
 testOrderOfFlags = "Last flag should override value of previous" `unitTest`
@@ -374,4 +375,17 @@ testConfFileHierarchy = "Conf files include is recursive" `unitTest`
      assertFlagValueEquals pr userId 123
      assertFlagValueEquals pr userName "batman"
      assertArgsEquals pr ["one", "two", "three"]
+
+testFlagAppendWithNoPrev :: UnitTest
+testFlagAppendWithNoPrev = "Append flag value without previous value should return same value" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     pr <- process flagData "--user_id += 123"
+     assertFlagValueEquals pr userId 123
+
+testFlagAppendWithNoValue :: UnitTest
+testFlagAppendWithNoValue = "Append flag value without value should return empty" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     pr <- process flagData "--user_id +="
+     assertError pr "Error with flag '--user_id': Flag value was not provided"
+     assertSingleError pr
 
