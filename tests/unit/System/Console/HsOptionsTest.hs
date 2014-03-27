@@ -48,7 +48,8 @@ tests = [
     testFlagDeclaredWithInvalidName, 
     testFlagDeclaredWithInvalidName2,
     testIncludeSingleFile,
-    testConfFileComments
+    testConfFileComments,
+    testConfFileHierarchy
   ]
 
 {- Flags -}
@@ -365,4 +366,12 @@ testConfFileComments = "Comments on conf files should be ignored" `unitTest`
      pr <- process flagData "--usingFile = tests/unit/ConfFiles/fileWithComments.conf"
      assertFlagValueEquals pr userId 123
      assertArgsEquals pr ["one", "two"]
+
+testConfFileHierarchy :: UnitTest
+testConfFileHierarchy = "Conf files include is recursive" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d userName]
+     pr <- process flagData "--usingFile = tests/unit/ConfFiles/user_name.conf"
+     assertFlagValueEquals pr userId 123
+     assertFlagValueEquals pr userName "batman"
+     assertArgsEquals pr ["one", "two", "three"]
 
