@@ -47,7 +47,8 @@ tests = [
     testFlagAliasIncorrectValue,
     testFlagDeclaredWithInvalidName, 
     testFlagDeclaredWithInvalidName2,
-    testIncludeSingleFile
+    testIncludeSingleFile,
+    testConfFileComments
   ]
 
 {- Flags -}
@@ -356,5 +357,12 @@ testIncludeSingleFile = "Include single file should workd correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
      pr <- process flagData "--usingFile = tests/unit/ConfFiles/simple1.conf"
      assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["one", "two"]
 
+testConfFileComments  :: UnitTest
+testConfFileComments = "Comments on conf files should be ignored" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     pr <- process flagData "--usingFile = tests/unit/ConfFiles/fileWithComments.conf"
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["one", "two"]
 

@@ -180,13 +180,13 @@ flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
         aux (FlagConf_Alias as) = FlagDataConf_Alias as
 
-        invalidFlag (Flag name _ fc) = if null invalidFlags
+        invalidFlag (Flag n _ fc) = if null invalidFlags
                                        then Nothing
                                        else Just ("Error: The following flags names are invalid " ++ 
                                                   show invalidFlags)
             where aliasList = flagAlias fc
-                  allNames = name:aliasList
-                  invalidFlags = [n | n <- allNames, invalidFlagName n]
+                  allNames = n:aliasList
+                  invalidFlags = [x | x <- allNames, invalidFlagName x]
                   invalidFlagName :: String -> Bool
                   invalidFlagName s = not (s =~ "^[a-zA-Z][a-zA-Z0-9\\-_]*$" :: Bool)
 
@@ -222,7 +222,16 @@ parseConfigFile filename =
   do fileResult <- try $ readFile filename :: IO (Either SomeException String)
      case fileResult of 
          Left except -> return (Left [FlagFatalError ("Error on '" ++ filename  ++ "': " ++ show except)])
-         Right content -> tokenize content
+         Right content -> tokenize (removeComments content)
+
+  where removeComments "" = ""
+        removeComments (c:cs) = if c == '#'
+                                then dropLine cs
+                                else c:removeComments cs
+
+        dropLine "" = ""
+        dropLine ('\n':cs) = removeComments cs
+        dropLine (_:cs) =  dropLine cs
 
 isUsingConfFlag :: Token -> Maybe String
 isUsingConfFlag (FlagToken "usingFile" _ (FlagValueToken filename)) = Just filename
