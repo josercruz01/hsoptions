@@ -41,7 +41,7 @@ tests = [
     testUsingfFileKeywordReserved,
     testEmptyFlagFollowedByFlag,
     testFlagAlias,
-    testFlagAliasIncorrectValue 
+    testFlagAliasIncorrectValue
   ]
 
 {- Flags -}

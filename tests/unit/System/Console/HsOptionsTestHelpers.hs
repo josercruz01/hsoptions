@@ -55,7 +55,7 @@ assertArgsEquals (TestProcessError errs) _args =
                 " but errors found:\n" ++
                 "** errors that where found:\n" ++ 
                 errorsToString errs)
-assertArgsEquals (TestProcessSuccess (_results, args)) expected = assertEqual "" args expected
+assertArgsEquals (TestProcessSuccess (_results, args)) expected = assertEqual "" expected args 
 
 process :: HSO.FlagData -> String -> TestProcessResult
 process fd input = case HSO.process' fd args of

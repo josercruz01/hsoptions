@@ -3,7 +3,7 @@ module System.Console.HsOptions.Parser (
    Token(..),
    OperationToken(..),
    FlagValueToken(..)
-)where
+) where
 
 import Text.ParserCombinators.Parsec
 import Data.Char
@@ -60,19 +60,48 @@ flagPrefix :: GenParser Char st ()
 flagPrefix = void $ try (string "--") <|> string "-"
 
 flagOperation :: GenParser Char st OperationToken
-flagOperation = try operation <|> do void space <|> eof
+flagOperation = try operation <|> do spaceOrEof
                                      return OperationTokenAssign
 
-flagValue :: GenParser Char st FlagValueToken
-flagValue = (try flagName >> return FlagValueTokenEmpty) <|> 
-            (do arg <- argument; return (FlagValueToken arg)) <|>
-            return FlagValueTokenEmpty
+spaceOrEof :: GenParser Char st ()
+spaceOrEof = void space <|> eof
 
-argument :: GenParser Char st String
-argument = spaces >> many1 (satisfy (not . isSpace))
+notFlag :: GenParser Char st String
+notFlag = do spaces 
+             choice [try twoDash, try singleDash, try nf1, try nf2, nf3]
+  where nf1 = do c1 <- string "--"
+                 c2 <- satisfy (not . isLetter)
+                 rest <- allButSpace 
+                 return (c1 ++ [c2] ++ rest)
+
+        nf2 = do c1 <- string "-"
+                 c2 <- satisfy (\s -> (not . isLetter) s && s /= '-')
+                 rest <- allButSpace 
+                 return (c1 ++ [c2] ++ rest)
+        
+        nf3 = do c1 <- noneOf "-"
+                 rest <- allButSpace
+                 return (c1:rest)
+
+        twoDash = do c1 <- string "--"
+                     spaceOrEof
+                     return c1
+
+        singleDash = do c1 <- string "-"
+                        spaceOrEof
+                        return c1
+                      
+
+flagValue :: GenParser Char st FlagValueToken
+flagValue = try getValue <|> return FlagValueTokenEmpty
+  where getValue = do value <- notFlag
+                      return (FlagValueToken value)
+
+allButSpace :: GenParser Char st String
+allButSpace = many (satisfy (not . isSpace))
 
 cmdLineArg :: GenParser Char st Token
-cmdLineArg = do arg <- argument
+cmdLineArg = do arg <- notFlag
                 return (ArgToken arg)
 
 operation :: GenParser Char st OperationToken
