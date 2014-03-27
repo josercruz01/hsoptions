@@ -39,7 +39,6 @@ import Text.Read(readMaybe)
 import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
-import Text.Regex.Posix
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
@@ -251,8 +250,8 @@ preprocess (_fd, aliasMap) = map changeAlias
         changeAlias t = t
 
 anyArgIsHelp :: [String] -> Bool
-anyArgIsHelp args = any aux helpKeyword
-  where aux kw = any (\s -> s=~ ("--?" ++ kw ++"$)")  :: Bool) args
+anyArgIsHelp args = any (`elem` args) helpFlags
+  where helpFlags = concat [["--" ++ x, "-" ++ x] | x <- helpKeyword]
 
 processMain :: String -> -- program description
                FlagData -> -- flags
