@@ -65,11 +65,11 @@ assertFlagDataException fd msg = do result <- try (evaluate fd) :: IO (Either So
                                         Left err -> assertEqual "" msg (show err)
                                         Right _ -> fail "Expected exception but no exception occurred"
 
-process :: HSO.FlagData -> String -> TestProcessResult
-process fd input = case HSO.process' fd args of
-    Left errs -> TestProcessError errs
-    Right result -> TestProcessSuccess result
-  where args = Parser.parseInput input
+process :: HSO.FlagData -> String -> IO TestProcessResult
+process fd input = do result <- HSO.process fd (words input)
+                      case result of 
+                          Left errs -> return (TestProcessError errs)
+                          Right result -> return (TestProcessSuccess result)
 
 makeFlagData :: [HSO.FlagData] -> HSO.FlagData
 makeFlagData = HSO.combine
