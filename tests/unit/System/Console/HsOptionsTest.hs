@@ -78,8 +78,8 @@ userLastName = HSO.make ("user_last_name",
 database :: HSO.Flag (Maybe String)
 database = HSO.make ("database", 
                      "database_help", 
-                     HSO.maybeParser HSO.stringParser:
-                     HSO.requiredIf (\ fr -> HSO.get fr userId == 4444) 
+                     [HSO.maybeParser HSO.stringParser,
+                      HSO.requiredIf (\ fr -> HSO.get fr userId == 4444)]
                      )
 
 dryRun :: HSO.Flag Bool

@@ -13,9 +13,9 @@ description = "Simple Haskell program\n" ++
 
 database :: Flag (Maybe String)
 database = make ("database", "database connection string. required if user_id == -1",
-    maybeParser stringParser:
-    aliasIs ["db"]:
-    requiredIf (\ fr -> get fr userIdFlag == -1))
+    [maybeParser stringParser,
+     aliasIs ["db"],
+     requiredIf (\ fr -> get fr userIdFlag == -1)])
 
 tellJoke :: Flag Bool
 tellJoke = make ("tell_joke", "tells a joke", boolFlag)

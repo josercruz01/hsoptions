@@ -61,16 +61,14 @@ data ValidationResult = ValidationError FlagError
 
 
 data FlagConf a = 
-    FlagConf_IsOptional 
-  | FlagConf_DefaultIs a
+    FlagConf_DefaultIs a
   | FlagConf_RequiredIf (FlagResults -> Bool)
   | FlagConf_Parser (FlagArgument -> Maybe a)
   | FlagConf_EmptyValueIs a
   | FlagConf_Alias [String]
 
 data FlagDataConf = 
-    FlagDataConf_IsOptional
-  | FlagDataConf_HasDefault 
+    FlagDataConf_HasDefault 
   | FlagDataConf_RequiredIf  (FlagResults -> Bool)
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
@@ -89,7 +87,7 @@ reservedWords :: [String]
 reservedWords = usingFileKeyword ++ helpKeyword
 
 isOptional :: FlagConf (Maybe a)
-isOptional = FlagConf_IsOptional
+isOptional = requiredIf (const False)
 
 emptyValueIs :: a -> FlagConf a
 emptyValueIs = FlagConf_EmptyValueIs
@@ -100,8 +98,8 @@ defaultIs = FlagConf_DefaultIs
 aliasIs :: [String] -> FlagConf a
 aliasIs = FlagConf_Alias 
 
-requiredIf :: (FlagResults -> Bool) -> [FlagConf (Maybe a)]
-requiredIf predicate = [isOptional, FlagConf_RequiredIf predicate]
+requiredIf :: (FlagResults -> Bool) -> FlagConf (Maybe a)
+requiredIf = FlagConf_RequiredIf 
 
 parser :: (FlagArgument -> Maybe a) -> FlagConf a
 parser = FlagConf_Parser 
@@ -168,7 +166,6 @@ flagToData :: Flag a -> FlagData
 flagToData (Flag name help flagConf) = (Map.fromList [(name, (help, flagDataConf))], Map.fromList alias)
   where alias = map (\s -> (s, name)) (flagAlias flagConf)
         flagDataConf = map aux flagConf
-        aux FlagConf_IsOptional = FlagDataConf_IsOptional
         aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
         aux (FlagConf_RequiredIf predicate) = FlagDataConf_RequiredIf predicate
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
@@ -358,7 +355,7 @@ getFlagHelp (fd, _aliasMap) = let flags = Map.toList fd in
                      [("help", "show this help")]
 
 flagDIsOptional :: [FlagDataConf] -> Bool
-flagDIsOptional fdc = not . null $ [ x | x@FlagDataConf_IsOptional <- fdc] 
+flagDIsOptional fdc = not . null $ [True | (FlagDataConf_RequiredIf _) <- fdc] 
 
 flagDIsRequiredIf :: [FlagDataConf] -> FlagResults -> Bool
 flagDIsRequiredIf fdc fr = case maybePredicate of 
