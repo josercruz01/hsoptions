@@ -412,3 +412,5 @@ boolFlag :: [FlagConf Bool]
 boolFlag = [parser boolParser,
             defaultIs False,
             emptyValueIs True]
+
+{-# ANN module "HLint: ignore Use camelCase" #-}

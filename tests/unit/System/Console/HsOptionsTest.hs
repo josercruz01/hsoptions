@@ -39,12 +39,15 @@ tests = [
     testHelpKeywordReserved,
     testHelpKeywordReservedOnAlias,
     testUsingfFileKeywordReserved,
-    testEmptyFlagFollowedByFlag
+    testEmptyFlagFollowedByFlag,
+    testFlagAlias,
+    testFlagAliasIncorrectValue 
   ]
 
 {- Flags -}
 userId :: HSO.Flag Int
-userId = HSO.make ("user_id", "user_id_help", [HSO.parser HSO.intParser])
+userId = HSO.make ("user_id", "user_id_help", [HSO.parser HSO.intParser,
+                                               HSO.aliasIs ["u", "uid"]])
 
 userName :: HSO.Flag String
 userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser])
@@ -310,3 +313,20 @@ testEmptyFlagFollowedByFlag = "A flag followed by another flag should have a val
          pr = process flagData "--user_last_name --user_last_name"
      assertError pr "Error with flag '--user_last_name': Flag value was not provided"
      assertSingleError pr
+
+testFlagAlias :: UnitTest
+testFlagAlias = "Valid flag alias should be parsed correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--uid 123"
+     assertFlagValueEquals pr userId 123
+
+testFlagAliasIncorrectValue :: UnitTest
+testFlagAliasIncorrectValue = "Valid flag alias with invalid value should report an error" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+         pr = process flagData "--uid blah"
+     assertError pr "Error with flag '--user_id': Value 'blah' is not valid"
+     assertSingleError pr
+
+{-# ANN module "HLint: ignore Reduce duplication" #-}
+{-# ANN module "HLint: ignore Use camelCase" #-}
+
