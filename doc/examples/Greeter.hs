@@ -8,7 +8,7 @@ userNameFlag = make ("user_name", "the user name of the app", [maybeParser strin
 
 userLastName :: Flag String
 userLastName = make ("user_last_name",
-                     "the last name of the app",
+                     "the last name of the app. default=wayne if username=bruce",
                      [parser stringParser, 
                       defaultIf "wayne" (\ fr-> get fr userNameFlag == Just "bruce"),
                       emptyValueIs ""])
