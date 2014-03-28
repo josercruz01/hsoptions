@@ -51,7 +51,9 @@ tests = [
     testConfFileComments,
     testConfFileHierarchy,
     testFlagAppendWithNoPrev,
-    testFlagAppendWithNoValue 
+    testFlagAppendWithNoValue,
+    testDependentDefaultTrue,
+    testDependentDefaultFalse 
   ]
 
 {- Flags -}
@@ -70,7 +72,6 @@ helpOnAlias :: HSO.Flag (Maybe Bool)
 helpOnAlias = HSO.make ("not_help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
                                                       HSO.isOptional,
                                                       HSO.aliasIs ["help"]])
-
 
 usingFileFlag :: HSO.Flag String
 usingFileFlag  = HSO.make ("usingFile", "usingFile_helptext", [HSO.parser HSO.stringParser])
@@ -100,6 +101,12 @@ invalidFlag1 = HSO.make ("1dry_run", "invalid1", HSO.boolFlag)
 
 invalidFlag2 :: HSO.Flag Bool
 invalidFlag2 = HSO.make ("dry_run ", "invalid1", HSO.boolFlag)
+
+dryRunOutput :: HSO.Flag String
+dryRunOutput = HSO.make ("dry_run_output", 
+                         "dryrun_output_helptext",
+                         [HSO.parser HSO.stringParser,
+                          HSO.defaultIf "blah_blah" (`HSO.get` dryRun)])
 
 {- Test methods -}
 
@@ -388,4 +395,19 @@ testFlagAppendWithNoValue = "Append flag value without value should return empty
      pr <- process flagData "--user_id +="
      assertError pr "Error with flag '--user_id': Flag value was not provided"
      assertSingleError pr
+
+testDependentDefaultTrue :: UnitTest
+testDependentDefaultTrue = "A missing flag should have a default value if predicate matches" `unitTest`
+  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput]
+     pr <- process flagData "--dry_run"
+     assertFlagValueEquals pr dryRun True
+     assertFlagValueEquals pr dryRunOutput "blah_blah"
+
+testDependentDefaultFalse :: UnitTest
+testDependentDefaultFalse = "A missing flag should be required if default value predicate fails" `unitTest`
+  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput]
+     pr <- process flagData "--dry_run = False"
+     assertError pr "Error with flag '--dry_run_output': Flag is required"
+     assertSingleError pr
+
 
