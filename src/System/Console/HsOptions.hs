@@ -18,6 +18,7 @@ module System.Console.HsOptions(
     isOptional,
     emptyValueIs,
     defaultIs,
+    defaultIf,
     aliasIs,
     parser,
     maybeParser,
@@ -61,16 +62,15 @@ data FlagArgument = FlagMissing String
 data ValidationResult = ValidationError FlagError
                       | ValidationSuccess 
 
-
 data FlagConf a = 
-    FlagConf_DefaultIs a
+    FlagConf_DefaultIf a (FlagResults -> Bool)
   | FlagConf_RequiredIf (FlagResults -> Bool)
   | FlagConf_Parser (FlagArgument -> Maybe a)
   | FlagConf_EmptyValueIs a
   | FlagConf_Alias [String]
 
 data FlagDataConf = 
-    FlagDataConf_HasDefault 
+    FlagDataConf_HasDefault  (FlagResults -> Bool)
   | FlagDataConf_RequiredIf  (FlagResults -> Bool)
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
@@ -95,7 +95,10 @@ emptyValueIs :: a -> FlagConf a
 emptyValueIs = FlagConf_EmptyValueIs
 
 defaultIs :: a -> FlagConf a
-defaultIs = FlagConf_DefaultIs 
+defaultIs a = FlagConf_DefaultIf a (const True)
+
+defaultIf :: a -> (FlagResults -> Bool) -> FlagConf a
+defaultIf = FlagConf_DefaultIf
 
 aliasIs :: [String] -> FlagConf a
 aliasIs = FlagConf_Alias 
@@ -123,15 +126,16 @@ emptyFlagResults = Map.empty
 emptyArgsResults :: [String]
 emptyArgsResults = []
 
-
 get :: FlagResults -> Flag a ->  a
-get result (Flag name _ flagconf) = fromJust $ runParser flagconf argValue
+get result (Flag name _ flagconf) = fromJust $ runParser result flagconf argValue
     where argValue = fromMaybe (error ("Error while trying to get flag value for '" ++ name ++ "'." ++
                                        " Perhaps this flag was not added to the flagData array"))
                                (Map.lookup name result )
 
-flagDefault :: [FlagConf a] -> Maybe a
-flagDefault fc = listToMaybe [ x | (FlagConf_DefaultIs x) <- fc]
+flagDefault :: FlagResults -> [FlagConf a] -> Maybe a
+flagDefault fr fc = case listToMaybe [ (x, p) | (FlagConf_DefaultIf x p) <- fc] of
+                      Nothing -> Nothing
+                      Just (x, p) -> if p fr then Just x else Nothing
 
 flagAlias :: [FlagConf a] -> [String]
 flagAlias fc = concat [ x | (FlagConf_Alias x) <- fc]
@@ -146,14 +150,14 @@ runRealParser :: [FlagConf a] -> FlagArgument -> Maybe a
 runRealParser flagconf = p
   where p = head [x | (FlagConf_Parser x) <- flagconf]
 
-runParser :: [FlagConf a] -> FlagArgument -> Maybe a
-runParser fc arg@(FlagMissing _) = case flagDefault fc of
+runParser :: FlagResults -> [FlagConf a] -> FlagArgument -> Maybe a
+runParser fr fc arg@(FlagMissing _) = case flagDefault fr fc of
     Nothing -> runRealParser fc arg
     Just val -> Just val
-runParser fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
+runParser _fr fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
     Nothing -> runRealParser fc arg
     Just val -> Just val
-runParser fc arg = runRealParser fc arg
+runParser _fr fc arg = runRealParser fc arg
 
 combine :: [FlagData] -> FlagData
 combine = foldl auxUnion (Map.empty, Map.empty)
@@ -165,7 +169,6 @@ combine = foldl auxUnion (Map.empty, Map.empty)
 
         findDuplicate (m1, a1) (m2, a2) = (Map.keys m1 ++ Map.keys a1) `intersect`
                                           (Map.keys m2 ++ Map.keys a2) 
-                                        
 
 flagToData :: Flag a -> FlagData
 flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
@@ -174,7 +177,7 @@ flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
   where result = (Map.singleton name (help, flagDataConf), Map.fromList alias)
         alias = map (\s -> (s, name)) (flagAlias flagConf)
         flagDataConf = map aux flagConf
-        aux (FlagConf_DefaultIs _) = FlagDataConf_HasDefault
+        aux (FlagConf_DefaultIf _ p) = FlagDataConf_HasDefault p
         aux (FlagConf_RequiredIf predicate) = FlagDataConf_RequiredIf predicate
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
@@ -212,8 +215,6 @@ executeOp (fr, _) (name, OperationTokenAppend, FlagValueTokenEmpty) = result
         value = case Map.lookup name fr of
                   Just fv@(FlagValue _ _) -> fv
                   _ -> FlagValueMissing name
-
-
 
 parseToken :: (ParseResults, Token) -> ParseResults
 parseToken (state, FlagToken name op value) = (executeOp state (name, op, value), [])
@@ -370,7 +371,9 @@ validateGlobal (fd, _aliasMap) fr = (mapMaybe aux (Map.toList fd), fr)
   where aux :: (String, FlagDataAtom) -> Maybe FlagError
         aux (name, (_, flagDataConf)) = case requiredIfValidator flagDataConf fr value of
                                              ValidationError err -> Just err
-                                             _ -> Nothing 
+                                             _ -> case defaultIfValidator flagDataConf fr value of
+                                                     ValidationError err -> Just err
+                                                     _ -> Nothing
           where value = fromJust (Map.lookup name fr)
 
 requiredIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
@@ -378,6 +381,14 @@ requiredIfValidator fdc fr (FlagMissing name)
   | flagDIsRequiredIf fdc fr = validationError name "Flag is required"
   | otherwise = ValidationSuccess
 requiredIfValidator _fdc _fr _flagArg = ValidationSuccess
+
+defaultIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
+defaultIfValidator fdc fr (FlagMissing name) 
+  | flagDHasDefault fdc = if flagDGetDefaultIf fdc fr 
+                          then ValidationSuccess
+                          else validationError name "Flag is required"
+  | otherwise = ValidationSuccess
+defaultIfValidator _fdc _fr _flagArg = ValidationSuccess
 
 make :: (String, String, [FlagConf a]) -> Flag a
 make (name, help, flagConf) = if hasParser 
@@ -393,7 +404,6 @@ defaultDisplayHelp desc flags = putStrLn $ Opt.usageInfo desc (map getOptDescr f
 
         getOptDescr (name, alias, help) = Opt.Option short (name:long) (Opt.NoArg "") help
           where (short, long) = getShortName alias
-        
 
 getFlagHelp :: FlagData -> [(String, [String], String)]
 getFlagHelp (fd, _aliasMap) = let flags = Map.toList fd in
@@ -409,8 +419,14 @@ flagDIsRequiredIf fdc fr = case maybePredicate of
                               Just p -> p fr
    where maybePredicate = listToMaybe [ predicate | (FlagDataConf_RequiredIf predicate) <- fdc] 
 
+flagDGetDefaultIf :: [FlagDataConf] -> FlagResults -> Bool
+flagDGetDefaultIf fdc fr = case maybePredicate of 
+                              Nothing -> False
+                              Just p -> p fr
+   where maybePredicate = listToMaybe [ predicate | (FlagDataConf_HasDefault predicate) <- fdc] 
+
 flagDHasDefault :: [FlagDataConf] -> Bool
-flagDHasDefault fdc = not . null $ [ x | x@FlagDataConf_HasDefault <- fdc] 
+flagDHasDefault fdc = not . null $ [ x | x@(FlagDataConf_HasDefault _) <- fdc] 
 
 flagDHasEmptyValue :: [FlagDataConf] -> Bool
 flagDHasEmptyValue fdc = not . null $ [ x | x@FlagDataConf_HasEmptyValue <- fdc] 

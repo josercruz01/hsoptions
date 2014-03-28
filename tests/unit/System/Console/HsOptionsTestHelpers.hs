@@ -5,7 +5,6 @@ import Test.HUnit
 import Control.Monad
 import Control.Exception
 import qualified System.Console.HsOptions as HSO
-import qualified System.Console.HsOptions.Parser as Parser
 
 f2d :: HSO.Flag a -> HSO.FlagData
 f2d = HSO.flagToData
@@ -69,7 +68,7 @@ process :: HSO.FlagData -> String -> IO TestProcessResult
 process fd input = do result <- HSO.process fd (words input)
                       case result of 
                           Left errs -> return (TestProcessError errs)
-                          Right result -> return (TestProcessSuccess result)
+                          Right r -> return (TestProcessSuccess r)
 
 makeFlagData :: [HSO.FlagData] -> HSO.FlagData
 makeFlagData = HSO.combine
