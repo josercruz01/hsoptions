@@ -1,6 +1,7 @@
 module System.Console.HsOptionsTest where
 
 import UnitTestHelper
+import System.Directory
 import qualified System.Console.HsOptions as HSO
 import System.Console.HsOptionsTestHelpers
 
@@ -53,7 +54,8 @@ tests = [
     testFlagAppendWithNoPrev,
     testFlagAppendWithNoValue,
     testDependentDefaultTrue,
-    testDependentDefaultFalse 
+    testDependentDefaultFalse,
+    testCircularFileInclusion
   ]
 
 {- Flags -}
@@ -410,4 +412,17 @@ testDependentDefaultFalse = "A missing flag should be required if default value 
      assertError pr "Error with flag '--dry_run_output': Flag is required"
      assertSingleError pr
 
+testCircularFileInclusion :: UnitTest
+testCircularFileInclusion = "A circular conf file inclusion should report an error" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     files <- mapM canonicalizePath ["tests/unit/ConfFiles/file1.conf",
+                                       "tests/unit/ConfFiles/file2.conf",
+                                       "tests/unit/ConfFiles/file3.conf"]
+     pr <- process flagData "--usingFile = tests/unit/ConfFiles/file1.conf"
+     assertError pr $ "Error while parsing conf file: Circular includes on files\n" ++ 
+                      "  " ++ head files ++ " ->\n" ++ -- file1.conf 
+                      "  " ++ files !! 1 ++ " ->\n" ++ -- file2.conf
+                      "  " ++ files !! 2 ++ " ->\n" ++ -- file3.conf
+                      "  " ++ head files                -- back to file1.conf
+     assertSingleError pr
 

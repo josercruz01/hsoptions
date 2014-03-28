@@ -41,6 +41,7 @@ import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
 import Text.Regex.Posix
+import System.Directory
 import qualified System.Console.GetOpt as Opt
 import qualified Data.Map as Map
 
@@ -234,14 +235,14 @@ concatToks :: TokenizeResult -> TokenizeResult -> TokenizeResult
 concatToks (Left errs) (Left errs2) = Left (errs ++ errs2)
 concatToks (Left errs) _ = Left errs
 concatToks _ (Left errs) = Left errs
-concatToks (Right toks1) (Right toks2) = Right (toks1 ++ toks2)
+concatToks (Right toks1) (Right toks2) = Right $ toks1 ++ toks2
 
-parseConfigFile :: String -> IO TokenizeResult
-parseConfigFile filename = 
+parseConfigFile :: [String] -> String -> IO (TokenizeResult, [String])
+parseConfigFile past filename = 
   do fileResult <- try $ readFile filename :: IO (Either SomeException String)
      case fileResult of 
-         Left except -> return (Left [FlagFatalError ("Error on '" ++ filename  ++ "': " ++ show except)])
-         Right content -> tokenize (removeComments content)
+         Left except -> return (Left [FlagFatalError ("Error on '" ++ filename  ++ "': " ++ show except)], past)
+         Right content -> tokenize past (removeComments content)
 
   where removeComments "" = ""
         removeComments (c:cs) = if c == '#'
@@ -252,24 +253,36 @@ parseConfigFile filename =
         dropLine ('\n':cs) = removeComments cs
         dropLine (_:cs) =  dropLine cs
 
-isUsingConfFlag :: Token -> Maybe String
-isUsingConfFlag (FlagToken "usingFile" _ (FlagValueToken filename)) = Just filename
-isUsingConfFlag _ = Nothing
+isUsingConfFlag :: Token -> IO (Maybe String)
+isUsingConfFlag (FlagToken "usingFile" _ (FlagValueToken filename)) = do path <- canonicalizePath filename
+                                                                         return $ Just path
+isUsingConfFlag _ = return Nothing
 
-includeConfig :: [Token] -> IO TokenizeResult
-includeConfig [] = return (Right [])
-includeConfig (t:ts) = case isUsingConfFlag t of
-                          Nothing -> do restToks <- includeConfig ts
-                                        return (Right [t] `concatToks` restToks)
-                          Just conf -> do confToks <- parseConfigFile conf
-                                          restToks <- includeConfig ts
-                                          return (confToks `concatToks` restToks)
+includeConfig :: [String] -> [Token] -> IO (TokenizeResult, [String])
+includeConfig past [] = return (Right [], past)
+includeConfig past (t:ts) = do isUsingConf <- isUsingConfFlag t 
+                               case isUsingConf of
+                                  Nothing -> do (restToks, past') <- includeConfig past ts
+                                                return (Right [t] `concatToks` restToks, past')
+                                  Just conf -> let past' = past ++ [conf] in
+                                               if conf `elem` past
+                                               then reportCircularDependency past'
+                                               else do (confToks, past'') <- parseConfigFile past' conf
+                                                       (restToks, past''') <- includeConfig past'' ts
+                                                       return (confToks `concatToks` restToks, past''')
 
-tokenize :: String -> IO TokenizeResult
-tokenize input = includeConfig (parseInput input)
+reportCircularDependency :: [String] -> IO (TokenizeResult, [String])
+reportCircularDependency past = return (Left [FlagFatalError 
+      $ "Error while parsing conf file: Circular includes on files\n" ++ aux past], past)
+  where aux [] = ""
+        aux [x] = "  " ++ x
+        aux (x:xs) = "  " ++ x ++ " ->\n" ++ aux xs
+
+tokenize :: [String] -> String -> IO (TokenizeResult, [String])
+tokenize past input = includeConfig past (parseInput input)
 
 process :: FlagData -> [String] -> IO (Either [FlagError] ProcessResults)
-process fd args = do result <- tokenize (unwords args)
+process fd args = do (result, _) <- tokenize [] (unwords args)
                      case result of
                       Left errs -> return (Left errs)
                       Right toks -> return (process' fd toks)
@@ -408,6 +421,7 @@ defaultDisplayHelp desc flags = putStrLn $ Opt.usageInfo desc (map getOptDescr f
 getFlagHelp :: FlagData -> [(String, [String], String)]
 getFlagHelp (fd, _aliasMap) = let flags = Map.toList fd in
                  map (\ (name, (help, flagDataConf)) -> (name, flagDAlias flagDataConf, help)) flags ++ 
+                     [("usingFile", [] ,"read flags from configuration file")] ++
                      [("help", ["h"] ,"show this help")]
 
 flagDIsOptional :: [FlagDataConf] -> Bool
