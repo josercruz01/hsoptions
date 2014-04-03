@@ -67,8 +67,14 @@ spaceOrEof :: GenParser Char st ()
 spaceOrEof = void space <|> eof
 
 notFlag :: GenParser Char st String
-notFlag = do spaces 
-             choice [try twoDash, try singleDash, try nf1, try nf2, nf3]
+notFlag = do spaces
+             choice [
+                     try (quotedString '"'), 
+                     try twoDash, 
+                     try singleDash, 
+                     try nf1, 
+                     try nf2, 
+                     nf3]
   where nf1 = do c1 <- string "--"
                  c2 <- satisfy (not . isLetter)
                  rest <- allButSpace 
@@ -90,7 +96,15 @@ notFlag = do spaces
         singleDash = do c1 <- string "-"
                         spaceOrEof
                         return c1
-                      
+
+quotedString :: Char -> GenParser Char st String
+quotedString c = do _ <- char c
+                    middle <- many (escapeOrStringChar c)
+                    void (char c) <|> eof
+                    return middle
+
+escapeOrStringChar :: Char -> GenParser Char st Char
+escapeOrStringChar c =  noneOf [c]
 
 flagValue :: GenParser Char st FlagValueToken
 flagValue = try getValue <|> return FlagValueTokenEmpty

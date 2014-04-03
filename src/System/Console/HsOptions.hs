@@ -316,13 +316,19 @@ processMain :: String -> -- program description
                (String -> [(String, [String], String)] -> IO ()) -> -- help display function
                IO () 
 processMain desc fd success failure displayHelp = 
-    do args <- getArgs 
+    do args <- getQuotedArgs 
        if anyArgIsHelp args 
           then displayHelp desc (getFlagHelp fd)
           else do result <- process fd args 
                   case result of 
                       Left errs -> failure errs
                       Right res -> success res
+
+getQuotedArgs  :: IO [String]
+getQuotedArgs = do args <- getArgs
+                   return (map quote' args)
+  where quote' s | length (words s) > 1 = "\"" ++ s ++ "\""
+                 | otherwise = s
 
 hasFatalError :: [FlagError] -> Bool
 hasFatalError errs = not . null $ [x | x@(FlagFatalError _) <- errs]
