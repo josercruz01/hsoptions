@@ -46,7 +46,7 @@ import qualified System.Console.GetOpt as Opt
 import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
-data FlagError = FlagNonFatalError String | FlagFatalError String deriving (Show)
+data FlagError = FlagNonFatalError String | FlagFatalError String 
 type FlagData = (Map.Map String FlagDataAtom, FlagAliasMap)
 type FlagDataAtom = (String, [FlagDataConf])
 type FlagResults = (Map.Map String FlagArgument)
@@ -76,6 +76,11 @@ data FlagDataConf =
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
   | FlagDataConf_Alias [String]
+
+
+instance Show FlagError where
+  show (FlagFatalError err) = err
+  show (FlagNonFatalError err) = err
 
 flagErrorMessage :: String -> String -> String
 flagErrorMessage name msg = "Error with flag '--" ++ name ++ "': " ++ msg
