@@ -47,7 +47,7 @@ import qualified Data.Map as Map
 
 data Flag a = Flag String String [FlagConf a]
 data FlagError = FlagNonFatalError String | FlagFatalError String 
-type FlagData = (Map.Map String FlagDataAtom, FlagAliasMap)
+type FlagData = (Map.Map String FlagDataAtom, FlagAliasMap, [GlobalRule])
 type FlagDataAtom = (String, [FlagDataConf])
 type FlagResults = (Map.Map String FlagArgument)
 type ArgsResults = [String]
@@ -59,6 +59,8 @@ data FlagArgument = FlagMissing String
                   | FlagValueMissing String
                   | FlagValue String String
                   deriving (Show)
+
+type GlobalRule = FlagResults -> Maybe String
 
 data ValidationResult = ValidationError FlagError
                       | ValidationSuccess 
@@ -166,21 +168,21 @@ runParser _fr fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
 runParser _fr fc arg = runRealParser fc arg
 
 combine :: [FlagData] -> FlagData
-combine = foldl auxUnion (Map.empty, Map.empty)
-  where auxUnion (m1, a1) (m2, a2) = case findDuplicate (m1, a1) (m2, a2) of
-                             [] -> (m1 `Map.union` m2, a1 `Map.union` a2)
+combine = foldl auxUnion (Map.empty, Map.empty, [])
+  where auxUnion (m1, a1, gr1) (m2, a2, gr2) = case findDuplicate (m1, a1) (m2, a2) of
+                             [] -> (m1 `Map.union` m2, a1 `Map.union` a2, gr1 ++ gr2)
                              flags -> error ("Duplicate flag names: " ++
                                              "The following flags names are duplicated in the code " ++ 
                                              show flags)
 
         findDuplicate (m1, a1) (m2, a2) = (Map.keys m1 ++ Map.keys a1) `intersect`
-                                          (Map.keys m2 ++ Map.keys a2) 
+                                                (Map.keys m2 ++ Map.keys a2) 
 
 flagToData :: Flag a -> FlagData
 flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
                                                 Nothing -> result
                                                 Just err -> error err
-  where result = (Map.singleton name (help, flagDataConf), Map.fromList alias)
+  where result = (Map.singleton name (help, flagDataConf), Map.fromList alias, [])
         alias = map (\s -> (s, name)) (flagAlias flagConf)
         flagDataConf = map aux flagConf
         aux (FlagConf_DefaultIf _ p) = FlagDataConf_HasDefault p
@@ -297,7 +299,8 @@ process' fd toks = case pipeline [validateReservedWords,
                                   addMissingFlags, 
                                   validateUnknownFlags, 
                                   validateFlagParsers]
-                                 [validateGlobal]
+                                 [validateRequiredIf,
+                                  validateDependentDefault]
                                  fd
                                  flagResults of
                       ([],res) -> Right (res, argsResults)
@@ -306,7 +309,7 @@ process' fd toks = case pipeline [validateReservedWords,
         (flagResults, argsResults) = parseArgs toks' (emptyFlagResults, emptyArgsResults)
 
 preprocess :: FlagData -> [Token] -> [Token]
-preprocess (_fd, aliasMap) = map changeAlias
+preprocess (_fd, aliasMap, _gr) = map changeAlias
   where changeAlias (FlagToken name op value) = FlagToken (fromAliasMaybe aliasMap name) op value
         changeAlias t = t
 
@@ -354,7 +357,7 @@ pipeline' (v:vs) fd fr = case v fd fr of
                         (errs ++ errs'', fr'')
 
 validateReservedWords :: PipelineFunction
-validateReservedWords (fd, aliasMap) fr = case reservedWords `intersect` codeFlags of
+validateReservedWords (fd, aliasMap, _gr) fr = case reservedWords `intersect` codeFlags of
                                   [] -> ([], fr)
                                   names -> (map reservedWordsError names, fr)
   where codeFlags = Map.keys fd ++ Map.keys aliasMap
@@ -366,7 +369,7 @@ ifSomething Nothing _ = True
 ifSomething (Just a) p = p a
 
 addMissingFlags :: PipelineFunction
-addMissingFlags (fd, aliasMap)  fr = ([], fr `Map.union` Map.fromList flags)
+addMissingFlags (fd, aliasMap, _gr)  fr = ([], fr `Map.union` Map.fromList flags)
   where inputFlags = Map.keys fr
         codeFlags = Map.keys fd
         missingFlags = [x | x <- codeFlags, 
@@ -375,7 +378,7 @@ addMissingFlags (fd, aliasMap)  fr = ([], fr `Map.union` Map.fromList flags)
         flags = map (\ name -> (name, FlagMissing name)) missingFlags
 
 validateUnknownFlags :: PipelineFunction
-validateUnknownFlags (fd, aliasMap) fr = (errors, fr)
+validateUnknownFlags (fd, aliasMap, _gr) fr = (errors, fr)
   where inputFlags = Map.keys fr
         codeFlags = Map.keys fd ++ Map.keys aliasMap
         missingFlags = inputFlags \\ codeFlags
@@ -383,21 +386,27 @@ validateUnknownFlags (fd, aliasMap) fr = (errors, fr)
         flagUnkownError name = FlagFatalError $ flagErrorMessage name "Unkown flag is not defined in the code"
 
 validateFlagParsers :: PipelineFunction
-validateFlagParsers (fd, _aliasMap) fr = (mapMaybe aux (Map.toList fd), fr)
+validateFlagParsers (fd, _aliasMap, _gr) fr = (mapMaybe aux (Map.toList fd), fr)
   where aux :: (String, FlagDataAtom) -> Maybe FlagError
         aux (name, (_, flagDataConf)) = case checkValidator flagDataConf value of
                                            ValidationError err -> Just err
                                            _ -> Nothing 
           where value = fromJust (Map.lookup name fr)
 
-validateGlobal :: PipelineFunction
-validateGlobal (fd, _aliasMap) fr = (mapMaybe aux (Map.toList fd), fr)
+validateRequiredIf :: PipelineFunction
+validateRequiredIf (fd, _aliasMap, _gr) fr = (mapMaybe aux (Map.toList fd), fr)
   where aux :: (String, FlagDataAtom) -> Maybe FlagError
         aux (name, (_, flagDataConf)) = case requiredIfValidator flagDataConf fr value of
                                              ValidationError err -> Just err
-                                             _ -> case defaultIfValidator flagDataConf fr value of
-                                                     ValidationError err -> Just err
-                                                     _ -> Nothing
+                                             _ -> Nothing
+          where value = fromJust (Map.lookup name fr)
+
+validateDependentDefault :: PipelineFunction
+validateDependentDefault (fd, _aliasMap, _gr) fr = (mapMaybe aux (Map.toList fd), fr)
+  where aux :: (String, FlagDataAtom) -> Maybe FlagError
+        aux (name, (_, flagDataConf)) = case defaultIfValidator flagDataConf fr value of
+                                             ValidationError err -> Just err
+                                             _ -> Nothing
           where value = fromJust (Map.lookup name fr)
 
 requiredIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
@@ -430,7 +439,7 @@ defaultDisplayHelp desc flags = putStrLn $ Opt.usageInfo desc (map getOptDescr f
           where (short, long) = getShortName alias
 
 getFlagHelp :: FlagData -> [(String, [String], String)]
-getFlagHelp (fd, _aliasMap) = let flags = Map.toList fd in
+getFlagHelp (fd, _aliasMap, _gr) = let flags = Map.toList fd in
                  map (\ (name, (help, flagDataConf)) -> (name, flagDAlias flagDataConf, help)) flags ++ 
                      [("usingFile", [] ,"read flags from configuration file")] ++
                      [("help", ["h"] ,"show this help")]
