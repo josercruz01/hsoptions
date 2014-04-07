@@ -32,3 +32,6 @@ TAGS
 
 *.orig
 dist/
+
+# Temp source directory
+tmp/
