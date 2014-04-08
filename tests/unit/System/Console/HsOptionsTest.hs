@@ -56,7 +56,9 @@ tests = [
     testDependentDefaultTrue,
     testDependentDefaultFalse,
     testCircularFileInclusion,
-    testRepeatedFileInclusion
+    testRepeatedFileInclusion,
+    --testQuotedStringWithEscapingQuote,
+    testQuotedString
   ]
 
 {- Flags -}
@@ -433,3 +435,20 @@ testRepeatedFileInclusion = "A file included multiple times should work correctl
                              "--usingFile = tests/unit/ConfFiles/simple1.conf ")
      assertFlagValueEquals pr userId 123
      assertArgsEquals pr ["one", "two", "one", "two"]
+
+testQuotedString :: UnitTest
+testQuotedString = "Quoted string should be parsed correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d userName]
+     pr <- process flagData "--user_name \"batman and robin\" --user_id 123"
+     assertFlagValueEquals pr userName "batman and robin"
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr []
+
+testQuotedStringWithEscapingQuote :: UnitTest
+testQuotedStringWithEscapingQuote = "Quoted string with inner quotes should be parsed correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d userName]
+     pr <- process flagData "--user_name \"batman \\\"and\\\" robin\" --user_id 123"
+     assertFlagValueEquals pr userName "batman and robin"
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr []
+
