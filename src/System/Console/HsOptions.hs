@@ -308,9 +308,9 @@ includeConfig past fd (t:ts) = do isUsingConf <- isUsingConfFlag t
                                     Just conf -> let past' = past ++ [conf] in
                                                  if conf `elem` past
                                                  then reportCircularDependency past'
-                                                 else do (confToks, past'') <- parseConfigFile past' fd conf
-                                                         (restToks, past''') <- includeConfig past'' fd ts
-                                                         return (confToks `concatToks` restToks, past''')
+                                                 else do (confToks, _) <- parseConfigFile past' fd conf
+                                                         (restToks, _) <- includeConfig past fd ts
+                                                         return (confToks `concatToks` restToks, past)
 
 reportCircularDependency :: [String] -> IO (TokenizeResult, [String])
 reportCircularDependency past = return (Left [FlagFatalError 

@@ -55,7 +55,8 @@ tests = [
     testFlagAppendWithNoValue,
     testDependentDefaultTrue,
     testDependentDefaultFalse,
-    testCircularFileInclusion
+    testCircularFileInclusion,
+    testRepeatedFileInclusion
   ]
 
 {- Flags -}
@@ -243,7 +244,6 @@ testGlobalValidationOccursAtTheEnd  = "Global validation should not execute if l
      assertError pr "Error with flag '--user_id': Flag is required"
      assertSingleError pr
 
-
 testOperationEquals :: UnitTest
 testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
@@ -426,3 +426,10 @@ testCircularFileInclusion = "A circular conf file inclusion should report an err
                       "  " ++ head files                -- back to file1.conf
      assertSingleError pr
 
+testRepeatedFileInclusion :: UnitTest
+testRepeatedFileInclusion = "A file included multiple times should work correctly" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     pr <- process flagData ("--usingFile = tests/unit/ConfFiles/simple1.conf " ++ 
+                             "--usingFile = tests/unit/ConfFiles/simple1.conf ")
+     assertFlagValueEquals pr userId 123
+     assertArgsEquals pr ["one", "two", "one", "two"]
