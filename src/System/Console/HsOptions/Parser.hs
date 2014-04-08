@@ -15,6 +15,7 @@ import Data.Maybe
 data OperationToken = OperationTokenAssign
                     | OperationTokenAppend
                     | OperationTokenAppend'
+                    | OperationTokenPrepend
                     deriving (Eq)
 
 data FlagValueToken = FlagValueTokenEmpty
@@ -40,6 +41,7 @@ operationsKeyMap :: [(String, OperationToken)]
 operationsKeyMap = [
     ("+=!", OperationTokenAppend'),
     ("+=", OperationTokenAppend),
+    ("=+", OperationTokenPrepend),
     ("=", OperationTokenAssign)
   ]
 

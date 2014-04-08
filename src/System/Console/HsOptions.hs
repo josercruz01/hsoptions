@@ -46,6 +46,7 @@ import Text.Read(readMaybe)
 import System.Environment
 import System.Console.HsOptions.Parser
 import Control.Exception
+import Text.Regex
 import Text.Regex.Posix
 import System.Directory
 import qualified System.Console.GetOpt as Opt
@@ -232,36 +233,43 @@ flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
 fromAliasMaybe :: FlagAliasMap -> String -> String
 fromAliasMaybe alias s = fromMaybe s (Map.lookup s alias)
 
-executeOp :: ParseResults -> (String, OperationToken, FlagValueToken) -> FlagResults
+replaceStr :: String -> (String, String) -> String
+replaceStr str (pattern, replacement) = subRegex (mkRegex pattern) str replacement
 
-executeOp _st (name, OperationTokenAssign, FlagValueToken value) = result
-  where result = Map.singleton name (FlagValue name value)
+expandValue :: ParseResults -> FlagArgument -> FlagArgument
+expandValue (fr, _) (FlagValue name value) = FlagValue name value'
+  where value' = value `replaceStr` ("\\$\\(inherit\\)", previous)
+        previous = case Map.lookup name fr of
+                      Just (FlagValue _ v) -> v
+                      _ -> ""
+expandValue _ flagValue = flagValue
 
-executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = result
-  where result = Map.singleton name (FlagValueMissing name)
+executeOp :: ParseResults -> (String, OperationToken, FlagValueToken) -> FlagArgument
 
+executeOp _st (name, OperationTokenAssign, FlagValueToken value) = FlagValue name value
+executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = FlagValueMissing name
 
 executeOp st@(fr, _) (name, OperationTokenAppend, FlagValueToken value) = result
   where result = executeOp st (name, OperationTokenAppend', FlagValueToken (prefix ++ value))
         prefix =  if isJust $ Map.lookup name fr then " " else ""
 
 executeOp st (name, OperationTokenAppend, token) = executeOp st (name, OperationTokenAppend', token)
-
-executeOp (fr, _) (name, OperationTokenAppend', FlagValueToken value) = result
-  where result = Map.singleton name (FlagValue name (previous ++ value))
-        previous = case Map.lookup name fr of
+executeOp (fr, _) (name, OperationTokenAppend', FlagValueToken value) = FlagValue name (previous ++ value)
+  where previous = case Map.lookup name fr of
                       Just (FlagValue _ v) -> v
                       _ -> ""
 
-executeOp (fr, _) (name, OperationTokenAppend', FlagValueTokenEmpty) = result
-  where result = Map.singleton name value
-        value = case Map.lookup name fr of
-                  Just fv@(FlagValue _ _) -> fv
-                  _ -> FlagValueMissing name
+executeOp (fr, _) (name, OperationTokenAppend', FlagValueTokenEmpty) = 
+  case Map.lookup name fr of
+      Just fv@(FlagValue _ _) -> fv
+      _ -> FlagValueMissing name
 
 parseToken :: (ParseResults, Token) -> ParseResults
-parseToken (state, FlagToken name op value) = (executeOp state (name, op, value), [])
 parseToken (_, ArgToken arg) = (emptyFlagResults, [arg])
+parseToken (state, FlagToken name op value) = (result, [])
+  where result = Map.singleton name value'
+        value' :: FlagArgument
+        value' =  expandValue state $ executeOp state (name, op, value)
 
 parseArgs :: [Token] -> ParseResults -> ParseResults
 parseArgs [] state = state

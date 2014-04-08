@@ -32,6 +32,7 @@ tests = [
     testOperationEquals,
     testOperationAppend,
     testOperationAppendNoSpace,
+    testInheritValueExpansion,
     testOrderOfFlags,
     testOrderOfArgs,
     testFlagOperationWhitespace1,
@@ -268,6 +269,12 @@ testOperationAppendNoSpace = "Append-no-space (+=!) operation should append with
   do let flagData = makeFlagData [f2d userId]
      pr <- process flagData "--user_id 100 --user_id +=! 123"
      assertFlagValueEquals pr userId 100123
+
+testInheritValueExpansion :: UnitTest
+testInheritValueExpansion = "Inherited value $(inherit) should be expanded" `unitTest`
+  do let flagData = makeFlagData [f2d userName]
+     pr <- process flagData "--user_name blah --user_name = \"1$(inherit)2\""
+     assertFlagValueEquals pr userName "1blah2"
 
 testOrderOfFlags :: UnitTest
 testOrderOfFlags = "Last flag should override value of previous" `unitTest`
