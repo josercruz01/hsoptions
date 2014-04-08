@@ -31,6 +31,7 @@ tests = [
     testGlobalValidationOccursAtTheEnd,
     testOperationEquals,
     testOperationAppend,
+    testOperationAppendNoSpace,
     testOrderOfFlags,
     testOrderOfArgs,
     testFlagOperationWhitespace1,
@@ -60,7 +61,8 @@ tests = [
     --testQuotedStringWithEscapingQuote,
     testQuotedString,
     testGlobalConstraints,
-    testGlobalConstraintsThatPasses
+    testGlobalConstraintsThatPasses,
+    testDefaultOperationForFlags
   ]
 
 {- Flags -}
@@ -69,7 +71,8 @@ userId = HSO.make ("user_id", "user_id_help", [HSO.parser HSO.intParser,
                                                HSO.aliasIs ["u", "uid"]])
 
 userName :: HSO.Flag String
-userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser])
+userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser,
+                                                     HSO.operation HSO.append])
 
 help :: HSO.Flag (Maybe Bool)
 help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
@@ -255,7 +258,13 @@ testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
      assertFlagValueEquals pr userId 123
 
 testOperationAppend :: UnitTest
-testOperationAppend   = "Append operation should be parsed correctly" `unitTest`
+testOperationAppend   = "Append (+=) operation should be add a space between words" `unitTest`
+  do let flagData = makeFlagData [f2d userName]
+     pr <- process flagData "--user_name +=! batman --user_name +=! robin"
+     assertFlagValueEquals pr userName "batmanrobin"
+
+testOperationAppendNoSpace :: UnitTest
+testOperationAppendNoSpace = "Append-no-space (+=!) operation should append with no space" `unitTest`
   do let flagData = makeFlagData [f2d userId]
      pr <- process flagData "--user_id 100 --user_id +=! 123"
      assertFlagValueEquals pr userId 100123
@@ -470,4 +479,10 @@ testGlobalConstraintsThatPasses = "Global constraints that passes should not rep
                                                                else Just "Error: --user_id cannot be negative")]
      pr <- process flagData "--user_id 100"
      assertFlagValueEquals pr userId 100
+
+testDefaultOperationForFlags :: UnitTest
+testDefaultOperationForFlags = "If no operation is set to a flag then the default operation should be used" `unitTest`
+  do let flagData = makeFlagData [f2d userName]
+     pr <- process flagData "--user_name batman"
+     assertFlagValueEquals pr userName "batman"
 

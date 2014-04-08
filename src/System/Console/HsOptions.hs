@@ -241,11 +241,11 @@ executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = result
   where result = Map.singleton name (FlagValueMissing name)
 
 
-executeOp res (name, OperationTokenAppend, FlagValueToken value) = result
-  where result = executeOp res (name, OperationTokenAppend', FlagValueToken (" " ++ value))
+executeOp st@(fr, _) (name, OperationTokenAppend, FlagValueToken value) = result
+  where result = executeOp st (name, OperationTokenAppend', FlagValueToken (prefix ++ value))
+        prefix =  if isJust $ Map.lookup name fr then " " else ""
 
-executeOp res (name, OperationTokenAppend, FlagValueTokenEmpty) = result
-  where result = executeOp res (name, OperationTokenAppend', FlagValueTokenEmpty)
+executeOp st (name, OperationTokenAppend, token) = executeOp st (name, OperationTokenAppend', token)
 
 executeOp (fr, _) (name, OperationTokenAppend', FlagValueToken value) = result
   where result = Map.singleton name (FlagValue name (previous ++ value))

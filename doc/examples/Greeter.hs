@@ -4,15 +4,16 @@ import System.Console.HsOptions
 
 userNameFlag :: Flag (Maybe String)
 userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser, 
-                                                               isOptional,
-                                                               operation append])
+                                                               isOptional])
+                                                               
 
 userLastName :: Flag String
 userLastName = make ("user_last_name",
                      "the last name of the app. default=wayne if username=bruce",
                      [parser stringParser, 
                       defaultIf "wayne" (\ fr-> get fr userNameFlag == Just "bruce"),
-                      emptyValueIs ""])
+                      emptyValueIs "",
+                      operation append])
 
 
 flagData :: FlagData
