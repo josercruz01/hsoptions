@@ -36,7 +36,8 @@ module System.Console.HsOptions(
     ProcessResults,
     ArgsResults,
     FlagDataConf(..),
-    FlagConf(..)
+    FlagConf(..),
+    GlobalRule
 ) where
 
 import Data.List

@@ -77,3 +77,6 @@ makeFlagData = HSO.combine
 makeConfFile :: [String] -> String
 makeConfFile = unlines
 
+validate :: HSO.GlobalRule -> HSO.FlagData
+validate = HSO.validate
+

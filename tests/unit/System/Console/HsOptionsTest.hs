@@ -58,7 +58,9 @@ tests = [
     testCircularFileInclusion,
     testRepeatedFileInclusion,
     --testQuotedStringWithEscapingQuote,
-    testQuotedString
+    testQuotedString,
+    testGlobalConstraints,
+    testGlobalConstraintsThatPasses
   ]
 
 {- Flags -}
@@ -451,4 +453,21 @@ testQuotedStringWithEscapingQuote = "Quoted string with inner quotes should be p
      assertFlagValueEquals pr userName "batman and robin"
      assertFlagValueEquals pr userId 123
      assertArgsEquals pr []
+
+testGlobalConstraints :: UnitTest
+testGlobalConstraints = "Global constraints that fails should report an error" `unitTest`
+  do let flagData = makeFlagData [f2d userId, validate (\fr -> if HSO.get fr userId >= 0 
+                                                               then Nothing 
+                                                               else Just "Error: --user_id cannot be negative")]
+     pr <- process flagData "--user_id -100"
+     assertError pr "Error: --user_id cannot be negative"
+     assertSingleError pr
+
+testGlobalConstraintsThatPasses :: UnitTest
+testGlobalConstraintsThatPasses = "Global constraints that passes should not report an error" `unitTest`
+  do let flagData = makeFlagData [f2d userId, validate (\fr -> if HSO.get fr userId >= 0 
+                                                               then Nothing 
+                                                               else Just "Error: --user_id cannot be negative")]
+     pr <- process flagData "--user_id 100"
+     assertFlagValueEquals pr userId 100
 
