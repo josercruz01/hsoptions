@@ -253,7 +253,7 @@ testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
 testOperationAppend :: UnitTest
 testOperationAppend   = "Append operation should be parsed correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
-     pr <- process flagData "--user_id 100 --user_id += 123"
+     pr <- process flagData "--user_id 100 --user_id +=! 123"
      assertFlagValueEquals pr userId 100123
 
 testOrderOfFlags :: UnitTest

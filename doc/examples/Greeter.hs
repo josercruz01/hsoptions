@@ -4,7 +4,8 @@ import System.Console.HsOptions
 
 userNameFlag :: Flag (Maybe String)
 userNameFlag = make ("user_name", "the user name of the app", [maybeParser stringParser, 
-                                                               isOptional])
+                                                               isOptional,
+                                                               operation append])
 
 userLastName :: Flag String
 userLastName = make ("user_last_name",

@@ -2,15 +2,19 @@ module System.Console.HsOptions.Parser (
    parseInput, 
    Token(..),
    OperationToken(..),
-   FlagValueToken(..)
+   FlagValueToken(..),
+   DefaultOp
 ) where
 
 import Text.ParserCombinators.Parsec
 import Data.Char
 import Control.Monad(void)
+import qualified Data.Map as Map
+import Data.Maybe
 
 data OperationToken = OperationTokenAssign
                     | OperationTokenAppend
+                    | OperationTokenAppend'
                     deriving (Eq)
 
 data FlagValueToken = FlagValueTokenEmpty
@@ -18,6 +22,8 @@ data FlagValueToken = FlagValueTokenEmpty
 
 data Token = FlagToken String OperationToken FlagValueToken
            | ArgToken String
+
+type DefaultOp = Map.Map String OperationToken
 
 instance Show FlagValueToken where
    show FlagValueTokenEmpty = "''"
@@ -32,6 +38,7 @@ instance Show OperationToken where
 
 operationsKeyMap :: [(String, OperationToken)]
 operationsKeyMap = [
+    ("+=!", OperationTokenAppend'),
     ("+=", OperationTokenAppend),
     ("=", OperationTokenAssign)
   ]
@@ -42,11 +49,11 @@ operationKeywords = [k | (k,_) <- operationsKeyMap]
 operationTokenFor :: String -> OperationToken
 operationTokenFor s = head [v | (k, v) <- operationsKeyMap, k == s]
 
-flag :: GenParser Char st Token
-flag = do name <- flagName
-          op <- flagOperation
-          value <- flagValue
-          return (FlagToken name op value)
+flag :: DefaultOp -> GenParser Char st Token
+flag defaultOp = do name <- flagName
+                    op <- flagOperation name defaultOp
+                    value <- flagValue
+                    return (FlagToken name op value)
 
 
 flagName :: GenParser Char st String
@@ -59,9 +66,10 @@ flagName = do spaces
 flagPrefix :: GenParser Char st ()
 flagPrefix = void $ try (string "--") <|> string "-"
 
-flagOperation :: GenParser Char st OperationToken
-flagOperation = try operation <|> do spaceOrEof
-                                     return OperationTokenAssign
+flagOperation :: String -> DefaultOp -> GenParser Char st OperationToken
+flagOperation name defaultOp = try operation <|> 
+                               do spaceOrEof
+                                  return (fromMaybe OperationTokenAssign (Map.lookup name defaultOp))
 
 spaceOrEof :: GenParser Char st ()
 spaceOrEof = void space <|> eof
@@ -125,15 +133,15 @@ operation = do op <- choice (map (\s -> try (spaces >> string s)) operationKeywo
 validFlagChars :: GenParser Char st String
 validFlagChars = many (oneOf "-_" <|> alphaNum)
 
-manyToken :: GenParser Char st [Token]
-manyToken = many (try flag <|> 
-                  try cmdLineArg)
+manyToken :: DefaultOp -> GenParser Char st [Token]
+manyToken defaultOp = many (try (flag defaultOp) <|> 
+                      try cmdLineArg)
 
-parseInput' :: String -> Either ParseError [Token]
-parseInput' = parse manyToken "Top level parse error" 
+parseInput' :: DefaultOp -> String -> Either ParseError [Token]
+parseInput' defaultOp = parse (manyToken defaultOp ) "Top level parse error" 
 
-parseInput :: String -> [Token]
-parseInput input = case parseInput' input of
+parseInput :: DefaultOp -> String -> [Token]
+parseInput defaultOp input = case parseInput' defaultOp input of
                       Left err -> error (show err)
                       Right result -> result
 

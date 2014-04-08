@@ -11,6 +11,10 @@ module System.Console.HsOptions(
     flagToData,
     combine,
     validate,
+    operation,
+    assign,
+    append,
+    append',
     process,
     process',
     processMain,
@@ -72,6 +76,7 @@ data FlagConf a =
   | FlagConf_Parser (FlagArgument -> Maybe a)
   | FlagConf_EmptyValueIs a
   | FlagConf_Alias [String]
+  | FlagConf_DefaultOperation OperationToken
 
 data FlagDataConf = 
     FlagDataConf_HasDefault  (FlagResults -> Bool)
@@ -79,7 +84,7 @@ data FlagDataConf =
   | FlagDataConf_Validator (FlagArgument -> Bool) 
   | FlagDataConf_HasEmptyValue
   | FlagDataConf_Alias [String]
-
+  | FlagDataConf_DefaultOperation OperationToken
 
 instance Show FlagError where
   show (FlagFatalError err) = err
@@ -99,6 +104,18 @@ reservedWords = usingFileKeyword ++ helpKeyword
 
 isOptional :: FlagConf (Maybe a)
 isOptional = requiredIf (const False)
+
+operation :: OperationToken -> FlagConf a
+operation = FlagConf_DefaultOperation 
+
+append :: OperationToken
+append = OperationTokenAppend
+
+append' :: OperationToken
+append' = OperationTokenAppend'
+
+assign :: OperationToken
+assign = OperationTokenAssign
 
 emptyValueIs :: a -> FlagConf a
 emptyValueIs = FlagConf_EmptyValueIs
@@ -152,6 +169,11 @@ flagAlias fc = concat [ x | (FlagConf_Alias x) <- fc]
 flagDAlias :: [FlagDataConf] -> [String]
 flagDAlias fc = concat [ x | (FlagDataConf_Alias x) <- fc]
 
+flagDDefaultOperation :: [FlagDataConf] -> OperationToken
+flagDDefaultOperation fc = case [ x | (FlagDataConf_DefaultOperation x) <- fc] of
+                              [] -> OperationTokenAssign
+                              res -> head res
+
 flagEmptyValue :: [FlagConf a] -> Maybe a
 flagEmptyValue fc = listToMaybe [ x | (FlagConf_EmptyValueIs x) <- fc]
 
@@ -194,6 +216,7 @@ flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
         aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
         aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
         aux (FlagConf_Alias as) = FlagDataConf_Alias as
+        aux (FlagConf_DefaultOperation op) = FlagDataConf_DefaultOperation op
 
         invalidFlag (Flag n _ fc) = if null invalidFlags
                                        then Nothing
@@ -216,13 +239,20 @@ executeOp _st (name, OperationTokenAssign, FlagValueToken value) = result
 executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = result
   where result = Map.singleton name (FlagValueMissing name)
 
-executeOp (fr, _) (name, OperationTokenAppend, FlagValueToken value) = result
+
+executeOp res (name, OperationTokenAppend, FlagValueToken value) = result
+  where result = executeOp res (name, OperationTokenAppend', FlagValueToken (" " ++ value))
+
+executeOp res (name, OperationTokenAppend, FlagValueTokenEmpty) = result
+  where result = executeOp res (name, OperationTokenAppend', FlagValueTokenEmpty)
+
+executeOp (fr, _) (name, OperationTokenAppend', FlagValueToken value) = result
   where result = Map.singleton name (FlagValue name (previous ++ value))
         previous = case Map.lookup name fr of
                       Just (FlagValue _ v) -> v
                       _ -> ""
 
-executeOp (fr, _) (name, OperationTokenAppend, FlagValueTokenEmpty) = result
+executeOp (fr, _) (name, OperationTokenAppend', FlagValueTokenEmpty) = result
   where result = Map.singleton name value
         value = case Map.lookup name fr of
                   Just fv@(FlagValue _ _) -> fv
@@ -248,12 +278,12 @@ concatToks (Left errs) _ = Left errs
 concatToks _ (Left errs) = Left errs
 concatToks (Right toks1) (Right toks2) = Right $ toks1 ++ toks2
 
-parseConfigFile :: [String] -> String -> IO (TokenizeResult, [String])
-parseConfigFile past filename = 
+parseConfigFile :: [String] -> FlagData -> String -> IO (TokenizeResult, [String])
+parseConfigFile past fd filename = 
   do fileResult <- try $ readFile filename :: IO (Either SomeException String)
      case fileResult of 
          Left except -> return (Left [FlagFatalError ("Error on '" ++ filename  ++ "': " ++ show except)], past)
-         Right content -> tokenize past (removeComments content)
+         Right content -> tokenize past fd (removeComments content)
 
   where removeComments "" = ""
         removeComments (c:cs) = if c == '#'
@@ -269,18 +299,18 @@ isUsingConfFlag (FlagToken "usingFile" _ (FlagValueToken filename)) = do path <-
                                                                          return $ Just path
 isUsingConfFlag _ = return Nothing
 
-includeConfig :: [String] -> [Token] -> IO (TokenizeResult, [String])
-includeConfig past [] = return (Right [], past)
-includeConfig past (t:ts) = do isUsingConf <- isUsingConfFlag t 
-                               case isUsingConf of
-                                  Nothing -> do (restToks, past') <- includeConfig past ts
-                                                return (Right [t] `concatToks` restToks, past')
-                                  Just conf -> let past' = past ++ [conf] in
-                                               if conf `elem` past
-                                               then reportCircularDependency past'
-                                               else do (confToks, past'') <- parseConfigFile past' conf
-                                                       (restToks, past''') <- includeConfig past'' ts
-                                                       return (confToks `concatToks` restToks, past''')
+includeConfig :: [String] -> FlagData -> [Token] -> IO (TokenizeResult, [String])
+includeConfig past _fd [] = return (Right [], past)
+includeConfig past fd (t:ts) = do isUsingConf <- isUsingConfFlag t 
+                                  case isUsingConf of
+                                    Nothing -> do (restToks, past') <- includeConfig past fd ts
+                                                  return (Right [t] `concatToks` restToks, past')
+                                    Just conf -> let past' = past ++ [conf] in
+                                                 if conf `elem` past
+                                                 then reportCircularDependency past'
+                                                 else do (confToks, past'') <- parseConfigFile past' fd conf
+                                                         (restToks, past''') <- includeConfig past'' fd ts
+                                                         return (confToks `concatToks` restToks, past''')
 
 reportCircularDependency :: [String] -> IO (TokenizeResult, [String])
 reportCircularDependency past = return (Left [FlagFatalError 
@@ -289,11 +319,18 @@ reportCircularDependency past = return (Left [FlagFatalError
         aux [x] = "  " ++ x
         aux (x:xs) = "  " ++ x ++ " ->\n" ++ aux xs
 
-tokenize :: [String] -> String -> IO (TokenizeResult, [String])
-tokenize past input = includeConfig past (parseInput input)
+tokenize :: [String] -> FlagData -> String -> IO (TokenizeResult, [String])
+tokenize past flagData@(fd, _, _) input = includeConfig past flagData (parseInput defaultOp input)
+  where defaultOp = mkDefaultOp $ Map.toList fd
+
+mkDefaultOp :: [(String, FlagDataAtom)] -> DefaultOp
+mkDefaultOp [] = Map.empty
+mkDefaultOp ((name, (_, flagDataConf)):rest) = Map.singleton name defaultOp' `Map.union` nextOps
+  where nextOps = mkDefaultOp rest
+        defaultOp' = flagDDefaultOperation flagDataConf
 
 process :: FlagData -> [String] -> IO (Either [FlagError] ProcessResults)
-process fd args = do (result, _) <- tokenize [] (unwords args)
+process fd args = do (result, _) <- tokenize [] fd (unwords args)
                      case result of
                       Left errs -> return (Left errs)
                       Right toks -> return (process' fd toks)
