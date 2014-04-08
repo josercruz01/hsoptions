@@ -20,12 +20,25 @@ database = make ("database", "database connection string. required if user_id ==
 tellJoke :: Flag Bool
 tellJoke = make ("tell_joke", "tells a joke", boolFlag)
 
+profileMemory :: Flag Bool
+profileMemory = make ("profile_memory", "profiles the memory of the app", boolFlag)
+
+profileDisk :: Flag Bool
+profileDisk = make ("profile_disk", "profiles the disk usage of the app", boolFlag)
+
 flagData :: FlagData
 flagData = combine [
             combine [ flagToData userIdFlag,
                       flagToData database,
-                      flagToData tellJoke],
-            Greeter.flagData
+                      flagToData tellJoke,
+                      flagToData profileMemory,
+                      flagToData profileDisk],
+            Greeter.flagData,
+
+            -- Global validation
+            validate (\fr -> if get fr profileMemory && get fr profileDisk 
+                             then Just "'--profile_memory' and '--profile_disk' can't be on at the same time"
+                             else Nothing)
            ]
 
 {- End Flag definitions -}

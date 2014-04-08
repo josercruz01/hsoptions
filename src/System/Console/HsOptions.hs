@@ -10,6 +10,7 @@ module System.Console.HsOptions(
 
     flagToData,
     combine,
+    validate,
     process,
     process',
     processMain,
@@ -178,6 +179,9 @@ combine = foldl auxUnion (Map.empty, Map.empty, [])
         findDuplicate (m1, a1) (m2, a2) = (Map.keys m1 ++ Map.keys a1) `intersect`
                                                 (Map.keys m2 ++ Map.keys a2) 
 
+validate :: GlobalRule -> FlagData
+validate rule = (Map.empty, Map.empty, [rule])
+
 flagToData :: Flag a -> FlagData
 flagToData flag@(Flag name help flagConf) = case invalidFlag flag of
                                                 Nothing -> result
@@ -300,7 +304,8 @@ process' fd toks = case pipeline [validateReservedWords,
                                   validateUnknownFlags, 
                                   validateFlagParsers]
                                  [validateRequiredIf,
-                                  validateDependentDefault]
+                                  validateDependentDefault,
+                                  validateGlobalRules]
                                  fd
                                  flagResults of
                       ([],res) -> Right (res, argsResults)
@@ -408,6 +413,11 @@ validateDependentDefault (fd, _aliasMap, _gr) fr = (mapMaybe aux (Map.toList fd)
                                              ValidationError err -> Just err
                                              _ -> Nothing
           where value = fromJust (Map.lookup name fr)
+
+validateGlobalRules :: PipelineFunction
+validateGlobalRules (_fd, _aliasMap, gr) fr = (flagErrs, fr)
+  where errs = mapMaybe (\ r -> r fr) gr 
+        flagErrs = map FlagNonFatalError errs
 
 requiredIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
 requiredIfValidator fdc fr (FlagMissing name) 
