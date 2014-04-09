@@ -123,7 +123,7 @@ emptyValueIs :: a -> FlagConf a
 emptyValueIs = FlagConf_EmptyValueIs
 
 defaultIs :: a -> FlagConf a
-defaultIs a = FlagConf_DefaultIf a (const True)
+defaultIs a = defaultIf a (const True)
 
 defaultIf :: a -> (FlagResults -> Bool) -> FlagConf a
 defaultIf = FlagConf_DefaultIf
