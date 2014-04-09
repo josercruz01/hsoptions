@@ -473,7 +473,7 @@ requiredIfValidator _fdc _fr _flagArg = ValidationSuccess
 
 defaultIfValidator :: [FlagDataConf] -> FlagResults -> FlagArgument -> ValidationResult
 defaultIfValidator fdc fr (FlagMissing name) 
-  | flagDHasDefault fdc = if flagDGetDefaultIf fdc fr 
+  | flagDHasDefault fdc = if flagDGetDefaultIf fdc fr || flagDIsOptional fdc 
                           then ValidationSuccess
                           else validationError name "Flag is required"
   | otherwise = ValidationSuccess
