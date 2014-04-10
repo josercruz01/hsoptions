@@ -1,14 +1,12 @@
 import System.Console.HsOptions
-import Control.Monad
 import qualified Greeter as Greeter
 
-{- Begin Flag definitions -}
 userIdFlag :: Flag Int
 userIdFlag = make ("user_id", "the user id of the app", [parser intParser,
                                                          aliasIs ["u"]])
 
 description :: String
-description = "Simple Haskell program\n" ++
+description = "Complex Haskell program\n" ++
               "Just prints a simple message based on the input flags"
 
 database :: Flag (Maybe String)
@@ -41,9 +39,6 @@ flagData = combine [
                              else Nothing)
            ]
 
-{- End Flag definitions -}
-
-{- Function to be executed if there was any errors parsing the flags -}
 main_errors :: [FlagError] -> IO ()
 main_errors errors = do
     let errorMessages = [er | FlagNonFatalError er <- errors]
@@ -52,20 +47,22 @@ main_errors errors = do
     mapM_ putStrLn (errorMessages ++ errorMessages')
     putStrLn ""
 
-{- Function to be executed if there was no errors parsing the flags -}
 main_success :: ProcessResults -> IO ()
-main_success (flagResults, argsResults) = 
-   do let userId = get flagResults userIdFlag
-          db = get flagResults database
+main_success (flags, argsResults) = 
+   do let userId = flags `get` userIdFlag -- get userId
+          db = flags `get` database       -- get database
 
       putStrLn $ "Main.hs: Args: " ++ show argsResults
       putStrLn $ "Main.hs: User id: " ++ show userId
       putStrLn $ "Main.hs: Database: " ++ show db
 
-      Greeter.sayHello flagResults
+      -- Call other modules
+      Greeter.sayHello flags
 
-      when (get flagResults tellJoke) $
-          putStrLn "I never make mistakes…I thought I did once; but I was wrong."
+      putStrLn $ if flags `get` tellJoke
+                 then "I never make mistakes…I thought I did once; but I was wrong."
+                 else "Not a time for jokes."
+
 
 main :: IO ()
 main = processMain description 

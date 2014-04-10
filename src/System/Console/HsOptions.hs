@@ -1,3 +1,42 @@
+{- |
+ - Module      :  System.Console.HsOptions
+ - Description :  Command line flag parser for Haskell
+ - Copyright   :  (c) Jose Raymundo Cruz (jose.r.cruz01@gmail.com)
+ - License     :  Apache-2.0
+ -
+ - Maintainer  :  Jose Raymundo Cruz (jose.r.cruz01@gmail.com)
+ - Stability   :  stable
+ - Portability :  portable
+ -
+ - @HsOptions@ library supports command line flag parsing.
+ -
+ - Flags are declared in the code by using the 'make' method, which
+ - takes  the @name@, @help text@ and @flag type@ (Int, Bool, String, etc) as
+ - arguments. 
+ - 
+ - Flags can be customized by calling configuration methods, such as 
+ - @defaultIs@ or @aliasIs@, that change how the flag behaves, how it 
+ - is parsed and validated.
+ -
+ - The @processMain@ method needs to be called at the beginning of the @main@
+ - method. This method takes as arguments the @program description@, a 
+ - list of all the declared flags and three callbacks (@success@, @failure@ 
+ - and @display help@). If there is any kind of validation error @failure@ is
+ - called with the list of errors. If the @--help@ flag was sent by the user 
+ - @display help@ is called (a default implementation of this function is
+ - provided in the library, this is the @defaultDisplayHelp@ method). 
+ - Otherwise if there is no problems the @success@ method is called.
+ -
+ - Basically @success@ becomes the 'real' main function. It takes as argument
+ - a tuple (@FlagResults@, @ArgsResults@). @FlagResults@ is a data structure
+ - that can be used to query flags by using the @get@ method. @ArgsResults@ is
+ - just an array of @String@ containing the remaining not-flag arguments.
+ - 
+ - A simple example (more in 
+ - <https://github.com/josercruz01/hsoptions/tree/master/examples>)
+ - 
+ - -}
+
 module System.Console.HsOptions(
     make,
     get,

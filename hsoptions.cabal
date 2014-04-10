@@ -50,14 +50,13 @@ test-suite unit-tests
 -- Example programs
 executable SimpleFlag
   main-is:           SimpleFlag.hs
-  hs-source-dirs:    doc/examples
-  ghc-options:       -Wall
+  hs-source-dirs:    examples
   build-depends:     base == 4.6.*,
                      hsoptions
 
-executable RequiredFlag
-  main-is:           RequiredFlag.hs
-  hs-source-dirs:    doc/examples
+executable ComplexFlag
+  main-is:           ComplexFlag.hs
+  hs-source-dirs:    examples
   ghc-options:       -Wall
   build-depends:     base == 4.6.*,
                      hsoptions
