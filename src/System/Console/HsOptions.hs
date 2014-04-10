@@ -236,9 +236,15 @@ fromAliasMaybe alias s = fromMaybe s (Map.lookup s alias)
 replaceStr :: String -> (String, String) -> String
 replaceStr str (pattern, replacement) = subRegex (mkRegex pattern) str replacement
 
+inherit :: String
+inherit = "$(inherit)"
+
+inheritRegex :: String
+inheritRegex = "\\$\\(inherit\\)"
+
 expandValue :: ParseResults -> FlagArgument -> FlagArgument
 expandValue (fr, _) (FlagValue name value) = FlagValue name value'
-  where value' = value `replaceStr` ("\\$\\(inherit\\)", previous)
+  where value' = value `replaceStr` (inheritRegex, previous)
         previous = case Map.lookup name fr of
                       Just (FlagValue _ v) -> v
                       _ -> ""
@@ -252,26 +258,26 @@ executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) =
         FlagValueMissing name
 
 executeOp (fr, _) (name, OperationTokenAppend, FlagValueToken value) = 
-        FlagValue name ("$(inherit)" ++ prefix ++ value)
+        FlagValue name (inherit ++ prefix ++ value)
   where prefix =  if isJust $ Map.lookup name fr then " " else ""
 
 executeOp (fr, _) (name, OperationTokenAppend, FlagValueTokenEmpty) = 
         fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
 executeOp _st (name, OperationTokenAppend', FlagValueToken value) = 
-        FlagValue name ("$(inherit)" ++ value)
+        FlagValue name (inherit ++ value)
 executeOp (fr, _) (name, OperationTokenAppend', FlagValueTokenEmpty) = 
         fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
 executeOp (fr, _) (name, OperationTokenPrepend, FlagValueToken value) = 
-        FlagValue name (value ++ prefix ++ "$(inherit)")
+        FlagValue name (value ++ prefix ++ inherit)
   where prefix =  if isJust $ Map.lookup name fr then " " else ""
 
 executeOp (fr, _) (name, OperationTokenPrepend, FlagValueTokenEmpty) = 
         fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
 executeOp _st (name, OperationTokenPrepend', FlagValueToken value) = 
-        FlagValue name (value ++ "$(inherit)")
+        FlagValue name (value ++ inherit)
 executeOp (fr, _) (name, OperationTokenPrepend', FlagValueTokenEmpty) = 
         fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
