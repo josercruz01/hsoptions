@@ -16,6 +16,7 @@ data OperationToken = OperationTokenAssign
                     | OperationTokenAppend
                     | OperationTokenAppend'
                     | OperationTokenPrepend
+                    | OperationTokenPrepend'
                     deriving (Eq)
 
 data FlagValueToken = FlagValueTokenEmpty
@@ -41,6 +42,7 @@ operationsKeyMap :: [(String, OperationToken)]
 operationsKeyMap = [
     ("+=!", OperationTokenAppend'),
     ("+=", OperationTokenAppend),
+    ("=+!", OperationTokenPrepend'),
     ("=+", OperationTokenPrepend),
     ("=", OperationTokenAssign)
   ]

@@ -246,30 +246,39 @@ expandValue _ flagValue = flagValue
 
 executeOp :: ParseResults -> (String, OperationToken, FlagValueToken) -> FlagArgument
 
-executeOp _st (name, OperationTokenAssign, FlagValueToken value) = FlagValue name value
-executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = FlagValueMissing name
+executeOp _st (name, OperationTokenAssign, FlagValueToken value) = 
+        FlagValue name value
+executeOp _st (name, OperationTokenAssign, FlagValueTokenEmpty) = 
+        FlagValueMissing name
 
-executeOp st@(fr, _) (name, OperationTokenAppend, FlagValueToken value) = result
-  where result = executeOp st (name, OperationTokenAppend', FlagValueToken (prefix ++ value))
-        prefix =  if isJust $ Map.lookup name fr then " " else ""
+executeOp (fr, _) (name, OperationTokenAppend, FlagValueToken value) = 
+        FlagValue name ("$(inherit)" ++ prefix ++ value)
+  where prefix =  if isJust $ Map.lookup name fr then " " else ""
 
-executeOp st (name, OperationTokenAppend, token) = executeOp st (name, OperationTokenAppend', token)
-executeOp (fr, _) (name, OperationTokenAppend', FlagValueToken value) = FlagValue name (previous ++ value)
-  where previous = case Map.lookup name fr of
-                      Just (FlagValue _ v) -> v
-                      _ -> ""
+executeOp (fr, _) (name, OperationTokenAppend, FlagValueTokenEmpty) = 
+        fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
+executeOp _st (name, OperationTokenAppend', FlagValueToken value) = 
+        FlagValue name ("$(inherit)" ++ value)
 executeOp (fr, _) (name, OperationTokenAppend', FlagValueTokenEmpty) = 
-  case Map.lookup name fr of
-      Just fv@(FlagValue _ _) -> fv
-      _ -> FlagValueMissing name
+        fromMaybe (FlagValueMissing name) (Map.lookup name fr)
+
+executeOp (fr, _) (name, OperationTokenPrepend, FlagValueToken value) = 
+        FlagValue name (value ++ prefix ++ "$(inherit)")
+  where prefix =  if isJust $ Map.lookup name fr then " " else ""
+
+executeOp (fr, _) (name, OperationTokenPrepend, FlagValueTokenEmpty) = 
+        fromMaybe (FlagValueMissing name) (Map.lookup name fr)
+
+executeOp _st (name, OperationTokenPrepend', FlagValueToken value) = 
+        FlagValue name (value ++ "$(inherit)")
+executeOp (fr, _) (name, OperationTokenPrepend', FlagValueTokenEmpty) = 
+        fromMaybe (FlagValueMissing name) (Map.lookup name fr)
 
 parseToken :: (ParseResults, Token) -> ParseResults
 parseToken (_, ArgToken arg) = (emptyFlagResults, [arg])
-parseToken (state, FlagToken name op value) = (result, [])
-  where result = Map.singleton name value'
-        value' :: FlagArgument
-        value' =  expandValue state $ executeOp state (name, op, value)
+parseToken (state, FlagToken name op value) = (Map.singleton name value', [])
+  where value' = expandValue state $ executeOp state (name, op, value)
 
 parseArgs :: [Token] -> ParseResults -> ParseResults
 parseArgs [] state = state

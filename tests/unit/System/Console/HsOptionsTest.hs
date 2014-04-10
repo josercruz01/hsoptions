@@ -32,6 +32,8 @@ tests = [
     testOperationEquals,
     testOperationAppend,
     testOperationAppendNoSpace,
+    testOperationPrepend,
+    testOperationPrependNoSpace,
     testInheritValueExpansion,
     testOrderOfFlags,
     testOrderOfArgs,
@@ -261,14 +263,26 @@ testOperationEquals  = "Equality operator should be parsed correctly" `unitTest`
 testOperationAppend :: UnitTest
 testOperationAppend   = "Append (+=) operation should be add a space between words" `unitTest`
   do let flagData = makeFlagData [f2d userName]
-     pr <- process flagData "--user_name +=! batman --user_name +=! robin"
-     assertFlagValueEquals pr userName "batmanrobin"
+     pr <- process flagData "--user_name += batman --user_name += robin"
+     assertFlagValueEquals pr userName "batman robin"
 
 testOperationAppendNoSpace :: UnitTest
 testOperationAppendNoSpace = "Append-no-space (+=!) operation should append with no space" `unitTest`
   do let flagData = makeFlagData [f2d userId]
      pr <- process flagData "--user_id 100 --user_id +=! 123"
      assertFlagValueEquals pr userId 100123
+
+testOperationPrepend :: UnitTest
+testOperationPrepend   = "Prepend (=+) operation should be add a space between words" `unitTest`
+  do let flagData = makeFlagData [f2d userName]
+     pr <- process flagData "--user_name =+ batman --user_name =+ robin"
+     assertFlagValueEquals pr userName "robin batman"
+
+testOperationPrependNoSpace :: UnitTest
+testOperationPrependNoSpace = "Prepend-no-space (=+!) operation should prepend with no space" `unitTest`
+  do let flagData = makeFlagData [f2d userId]
+     pr <- process flagData "--user_id 100 --user_id =+! 123"
+     assertFlagValueEquals pr userId 123100
 
 testInheritValueExpansion :: UnitTest
 testInheritValueExpansion = "Inherited value $(inherit) should be expanded" `unitTest`
