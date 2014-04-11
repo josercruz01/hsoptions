@@ -10,30 +10,31 @@ Portability :  portable
 
 @HsOptions@ library supports command line flag parsing.
 
-Flags are declared in the code by using the 'make' method, which
-takes  the @name@, @help text@ and @flag type@ (Int, Bool, String, etc) as
-arguments.
+Flags are declared in the code by using the 'make' function, which takes the
+flag's name, help text and type as arguments.
 
 The flags are parsed from the command line stream of from a file
-if the @--usingFile <filename>@ flag is sent to the program.
+if the @--usingFile \<filename\>@ flag is sent to the program.
 
-Flags can be customized by calling configuration methods, such as
-@defaultIs@ or @aliasIs@, that change how the flag behaves, how it
+Flags can be customized by calling configuration function, such as
+'defaultIs' or 'aliasIs', that change how the flag behaves, how it
 is parsed and validated.
 
-The @processMain@ method needs to be called at the beginning of the @main@
-method. This method takes as arguments the @program description@, a
-list of all the declared flags and three callbacks (@success@, @failure@
+The 'processMain' function needs to be called at the beginning of the 'main'
+function. This function takes as arguments the @program description@, a
+@list of all declared flags@ and three callbacks (@success@, @failure@
 and @display help@). If there is any kind of validation error @failure@ is
 called with the list of errors. If the @--help@ flag was sent by the user
-@display help@ is called (a default implementation of this function is
-provided in the library, this is the @defaultDisplayHelp@ method).
-Otherwise if there is no problems the @success@ method is called.
+@display help@ is called. Otherwise if there are no problems the @success@
+function is called.
 
-Basically @success@ becomes the 'real' main function. It takes as argument
-a tuple (@FlagResults@, @ArgsResults@). @FlagResults@ is a data structure
-that can be used to query flags by using the @get@ method. @ArgsResults@ is
-just an array of @String@ containing the remaining not-flag arguments.
+A default implementation of @failure@ and @display help@ is provided in the
+library ('defaultDisplayHelp', 'defaultDisplayErrors') with a basic bahavior.
+
+Basically @success@ becomes the \'real\' main function. It takes as argument
+a tuple ('FlagResults', 'ArgsResults'). 'FlagResults' is a data structure
+that can be used to query flags by using the 'get' function. 'ArgsResults' is
+just an array of 'String' containing the remaining not-flag arguments.
 
 A simple example (more in
 <https://github.com/josercruz01/hsoptions/tree/master/examples>)
@@ -68,10 +69,9 @@ A simple example (more in
 > failure errs = do putStrLn "Some errors occurred:"
 >                   mapM_ print errs
 
-At @processMain@ each the input stream is validated against the declared
-flags. In the @success@ function you can be sure that all required flags
-where verified to exist, all flag types are correct and all validation
-was executed.
+At the 'processMain' function each of the input flags is validated against the
+declared flags. Within the @success@ function you can be sure that all required
+flags exist, all flag types are correct and all validation was successful.
 -}
 module System.Console.HsOptions(
     -- * Definition of flags
@@ -115,6 +115,8 @@ module System.Console.HsOptions(
     assign,
     append,
     append',
+    prepend,
+    prepend',
 
     -- * Default functions implementation
     defaultDisplayHelp,
@@ -126,7 +128,6 @@ module System.Console.HsOptions(
     FlagResults,
     ProcessResults,
     ArgsResults,
-    FlagDataConf(..),
     FlagConf(..),
     GlobalRule
 ) where
@@ -223,6 +224,12 @@ append = OperationTokenAppend
 
 append' :: OperationToken
 append' = OperationTokenAppend'
+
+prepend :: OperationToken
+prepend = OperationTokenPrepend
+
+prepend' :: OperationToken
+prepend' = OperationTokenPrepend'
 
 assign :: OperationToken
 assign = OperationTokenAssign
