@@ -1,7 +1,11 @@
 import System.Console.HsOptions
 
-userName = make ("user_name", "the user name of the app", [parser stringParser,
-                                                           aliasIs ["u"]])
+userName = make ( "user_name"
+                , "the user name of the app"
+                , [ parser stringParser
+                  , aliasIs ["u"]
+                  ]
+                )
 userAge = make ("age", "the age of the user", [parser intParser])
 
 flagData = combine [flagToData userName, flagToData userAge]

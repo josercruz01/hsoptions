@@ -39,14 +39,6 @@ flagData = combine [
                              else Nothing)
            ]
 
-main_errors :: [FlagError] -> IO ()
-main_errors errors = do
-    let errorMessages = [er | FlagNonFatalError er <- errors]
-    let errorMessages' = [er | FlagFatalError er <- errors]
-    putStrLn "Error while running the program:"
-    mapM_ putStrLn (errorMessages ++ errorMessages')
-    putStrLn ""
-
 main_success :: ProcessResults -> IO ()
 main_success (flags, argsResults) = 
    do let userId = flags `get` userIdFlag -- get userId
@@ -68,5 +60,5 @@ main :: IO ()
 main = processMain description 
                    flagData
                    main_success 
-                   main_errors 
+                   defaultDisplayErrors
                    defaultDisplayHelp

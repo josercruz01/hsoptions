@@ -2,16 +2,30 @@ name:                hsoptions
 version:             0.1.0.0
 cabal-version:       >= 1.18
 synopsis:            Command line flag parser for Haskell
--- description:
+description:         Flags are declared in the source code and are parsed from
+                     the command line. A set of validation rules can be defined
+                     for each flag such as 'flag is required' or 'flag is 
+                     required if this other flag is true'.
+                     .
+                     Flags can also be parsed from a text file stream by making
+                     use of the special flag '--usingFile filename'. This 
+                     flag can be specified multiple times.
+                     .
+                     Click on the HsOptions module for examples and documentation.
+                     .
+
 homepage:            https://github.com/josercruz01/hsoptions
 license:             Apache-2.0
 license-file:        LICENSE
 author:              Jose Raymundo Cruz
 maintainer:          jose.r.cruz01@gmail.com
--- copyright:
+copyright:           (c) Jose Raymundo Cruz (jose.r.cruz01@gmail.com)
 category:            System
 build-type:          Simple
 cabal-version:       >=1.8
+source-repository    head
+           type:     git
+           location: https://github.com/josercruz01/hsoptions
 
 library
   exposed-modules:
