@@ -50,7 +50,7 @@ tests = [
     testEmptyFlagFollowedByFlag,
     testFlagAlias,
     testFlagAliasIncorrectValue,
-    testFlagDeclaredWithInvalidName, 
+    testFlagDeclaredWithInvalidName,
     testFlagDeclaredWithInvalidName2,
     testIncludeSingleFile,
     testConfFileComments,
@@ -78,11 +78,11 @@ userName = HSO.make ("user_name", "user_name_help", [HSO.parser HSO.stringParser
                                                      HSO.operation HSO.append])
 
 help :: HSO.Flag (Maybe Bool)
-help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
+help = HSO.make ("help", "help_helptext", [HSO.maybeParser HSO.boolParser,
                                            HSO.isOptional])
 
 helpOnAlias :: HSO.Flag (Maybe Bool)
-helpOnAlias = HSO.make ("not_help", "help_helptext", [HSO.maybeParser HSO.boolParser, 
+helpOnAlias = HSO.make ("not_help", "help_helptext", [HSO.maybeParser HSO.boolParser,
                                                       HSO.isOptional,
                                                       HSO.aliasIs ["help"]])
 
@@ -90,18 +90,18 @@ usingFileFlag :: HSO.Flag String
 usingFileFlag  = HSO.make ("usingFile", "usingFile_helptext", [HSO.parser HSO.stringParser])
 
 customHelp :: HSO.Flag (Maybe Bool)
-customHelp = HSO.make ("custom_help", "customHelp_helptext", [HSO.maybeParser HSO.boolParser, 
+customHelp = HSO.make ("custom_help", "customHelp_helptext", [HSO.maybeParser HSO.boolParser,
                                            HSO.isOptional])
 
 userLastName :: HSO.Flag (Maybe String)
-userLastName = HSO.make ("user_last_name", 
-                         "user_last_name_help", 
-                         [HSO.maybeParser HSO.stringParser, 
+userLastName = HSO.make ("user_last_name",
+                         "user_last_name_help",
+                         [HSO.maybeParser HSO.stringParser,
                           HSO.isOptional])
 
 database :: HSO.Flag (Maybe String)
-database = HSO.make ("database", 
-                     "database_help", 
+database = HSO.make ("database",
+                     "database_help",
                      [HSO.maybeParser HSO.stringParser,
                       HSO.requiredIf (\ fr -> HSO.get fr userId == 4444)]
                      )
@@ -116,7 +116,7 @@ invalidFlag2 :: HSO.Flag Bool
 invalidFlag2 = HSO.make ("dry_run ", "invalid1", HSO.boolFlag)
 
 dryRunOutput :: HSO.Flag String
-dryRunOutput = HSO.make ("dry_run_output", 
+dryRunOutput = HSO.make ("dry_run_output",
                          "dryrun_output_helptext",
                          [HSO.parser HSO.stringParser,
                           HSO.defaultIf "blah_blah" (`HSO.get` dryRun)])
@@ -453,8 +453,8 @@ testCircularFileInclusion = "A circular conf file inclusion should report an err
                                        "tests/unit/ConfFiles/file2.conf",
                                        "tests/unit/ConfFiles/file3.conf"]
      pr <- process flagData "--usingFile = tests/unit/ConfFiles/file1.conf"
-     assertError pr $ "Error while parsing conf file: Circular includes on files\n" ++ 
-                      "  " ++ head files ++ " ->\n" ++ -- file1.conf 
+     assertError pr $ "Error while parsing conf file: Circular includes on files\n" ++
+                      "  " ++ head files ++ " ->\n" ++ -- file1.conf
                       "  " ++ files !! 1 ++ " ->\n" ++ -- file2.conf
                       "  " ++ files !! 2 ++ " ->\n" ++ -- file3.conf
                       "  " ++ head files                -- back to file1.conf
@@ -463,7 +463,7 @@ testCircularFileInclusion = "A circular conf file inclusion should report an err
 testRepeatedFileInclusion :: UnitTest
 testRepeatedFileInclusion = "A file included multiple times should work correctly" `unitTest`
   do let flagData = makeFlagData [f2d userId]
-     pr <- process flagData ("--usingFile = tests/unit/ConfFiles/simple1.conf " ++ 
+     pr <- process flagData ("--usingFile = tests/unit/ConfFiles/simple1.conf " ++
                              "--usingFile = tests/unit/ConfFiles/simple1.conf ")
      assertFlagValueEquals pr userId 123
      assertArgsEquals pr ["one", "two", "one", "two"]
@@ -486,18 +486,18 @@ testQuotedStringWithEscapingQuote = "Quoted string with inner quotes should be p
 
 testGlobalConstraints :: UnitTest
 testGlobalConstraints = "Global constraints that fails should report an error" `unitTest`
-  do let flagData = makeFlagData [f2d userId, validate (\fr -> if HSO.get fr userId >= 0 
-                                                               then Nothing 
-                                                               else Just "Error: --user_id cannot be negative")]
+  do let flagData = makeFlagData [f2d userId, HSO.validate (\fr -> if HSO.get fr userId >= 0
+                                                                   then Nothing
+                                                                   else Just "Error: --user_id cannot be negative")]
      pr <- process flagData "--user_id -100"
      assertError pr "Error: --user_id cannot be negative"
      assertSingleError pr
 
 testGlobalConstraintsThatPasses :: UnitTest
 testGlobalConstraintsThatPasses = "Global constraints that passes should not report an error" `unitTest`
-  do let flagData = makeFlagData [f2d userId, validate (\fr -> if HSO.get fr userId >= 0 
-                                                               then Nothing 
-                                                               else Just "Error: --user_id cannot be negative")]
+  do let flagData = makeFlagData [f2d userId, HSO.validate (\fr -> if HSO.get fr userId >= 0
+                                                                   then Nothing
+                                                                   else Just "Error: --user_id cannot be negative")]
      pr <- process flagData "--user_id 100"
      assertFlagValueEquals pr userId 100
 
