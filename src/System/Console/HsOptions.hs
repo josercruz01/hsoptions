@@ -33,7 +33,7 @@ function. This function takes as arguments:
 
     * Display-Help callback function
 
-If there is any kind of validation __error__ @failure@ is
+If there is any kind of validation error @failure@ is
 called with the list of errors. If the @--help@ flag was sent by the user
 @display help@ is called. Otherwise if there are no problems the @success@
 function is called.
@@ -41,7 +41,7 @@ function is called.
 A default implementation of @failure@ and @display help@ is provided in the
 library ('defaultDisplayHelp', 'defaultDisplayErrors') with a basic behavior.
 
-Basically @success@ becomes the \'real\' main function. It takes as argument
+Basically, @success@ becomes the \'real\' main function. It takes as argument
 a tuple ('FlagResults', 'ArgsResults'). 'FlagResults' is a data structure
 that can be used to query flags by using the 'get' function. 'ArgsResults' is
 just an array of 'String' containing the remaining not-flag arguments.
@@ -138,6 +138,7 @@ module System.Console.HsOptions(
     FlagError(..),
     FlagResults,
     FlagArgument(..),
+    GlobalRule,
     ProcessResults,
     ArgsResults
 ) where
@@ -787,12 +788,62 @@ flagDDefaultOperation fc =
         []  -> OperationTokenAssign
         res -> head res
 
+-- | Finds the value to use if the flag value is empty.
+--
+-- Arguments:
+--
+--    *@configurations@: the list of configurations for the flag.
+--
+-- Returns:
+--
+--    * Nothing: if there is no empty value configured for the flag
+--    * Just value: if the empty value is found.
 flagEmptyValue :: [FlagConf a] -> Maybe a
 flagEmptyValue fc = listToMaybe [ x | (FlagConf_EmptyValueIs x) <- fc]
 
+-- | Finds the parser for the flags and runs it against the flag argument.
+--
+-- Arguments:
+--
+--    *@configurations@: the list of configurations for the flag.
+--
+--    *@flag_argument@: the argument of the flag.
+--
+-- Returns:
+--
+--    * The parsed value of the @flag_argument@ by using the original flag
+--    parser
+--
+-- Throws:
+--
+--    * An exception if no parser is found. This method depend on previous
+--    validation that the parser was configured for the flag.
 runRealParser :: [FlagConf a] -> FlagArgument -> Maybe a
 runRealParser flagconf = head [x | (FlagConf_Parser x) <- flagconf]
 
+-- | Runs the parser for the flag depending on the type of 'FlagArgument'.
+--
+-- Takes into considerations scenarios where the flag argument is missing but
+-- the user defined a default value for the flag or if the flag argument is
+-- empty and the user defined an empty value for the flag.
+--
+-- Arguments:
+--
+--    *@flag_results@: the current 'FlagResults'.
+--
+--    *@configurations@: the list of configurations for the flag.
+--
+--    *@flag_argument@: the argument of the flag.
+--
+-- Returns:
+--
+--    * The default value for the flag: if a default value was configured and
+--    the flag argument is 'FlagMissing'.
+--
+--    * The empty value for the flag: if an empty value was configured and
+--    the flag argument is 'FlagValueMissing'
+--
+--    * Otherwise: The result of the real parser configured for the flag.
 runParser :: FlagResults -> [FlagConf a] -> FlagArgument -> Maybe a
 runParser fr fc arg@(FlagMissing _) = case flagDefault fr fc of
     Nothing  -> runRealParser fc arg
@@ -802,6 +853,31 @@ runParser _ fc arg@(FlagValueMissing _) = case flagEmptyValue fc of
     Just val -> Just val
 runParser _ fc arg = runRealParser fc arg
 
+-- | Takes a list of 'FlagData' and combines them together into a single
+-- 'FlagData'.
+--
+-- Validates that a flag name is not repeated in the incoming list of
+-- flag data.
+--
+-- Usage example:
+--
+-- > flagData = combine [ flagToData user_id
+-- >                    , flagToData user_name,
+-- >                    , flagToData database
+-- >                    ]
+--
+-- Arguments:
+--
+--    * @flag_data_list@: list of flag data to combine.
+--
+-- Returns:
+--
+--    * A combined 'FlagData' result
+--
+-- Throws:
+--
+--    * An exception if any two flag names are duplicated in the input
+--    @flag_data_list@.
 combine :: [FlagData] -> FlagData
 combine = foldl combine' (Map.empty, Map.empty, [])
   where combine' (m1, a1, gr1) (m2, a2, gr2) =
@@ -815,31 +891,73 @@ combine = foldl combine' (Map.empty, Map.empty, [])
         duplicates (m1, a1) (m2, a2) = allKeys (m1, a1) `intersect`
                                        allKeys (m2, a2)
 
-
+-- | Constructs a 'FlagData' out of a 'GlobalRule'.
+--
+-- This global rule will be used in the last validation stage of the
+-- 'process' method.
+--
+-- Usage example:
+--
+-- > flagData = combine [ flagToData user_id
+-- >                     , validate (\fr -> if get fr user_id < 0
+-- >                                       then Just "user id negative error"
+-- >                                       else Nothing)
+-- >                    ]
+--
+-- Multiple validation rules can exist.
+--
+-- Arguments:
+--
+--    *@global_rule@: global validation rule
+--
+-- Returns:
+--
+--    * A 'FlagData' representation of the @global_rule@.
 validate :: GlobalRule -> FlagData
 validate rule = (Map.empty, Map.empty, [rule])
 
+-- | Converts a 'Flag' to a 'FlagData'.
+--
+-- 'FlagData' is the general form that is not bound by the type \"a\" of the
+-- \"'Flag' a\" input, thus it can be added to a collection of flags later.
+--
+-- Flag is validaded with 'invalidFlag' and if an error is found on the flag
+-- an exception is raised.
+--
+-- Arguments:
+--
+--    *@flag@: the flag to be mapped.
+--
+-- Returns:
+--
+--    * A corresponding 'FlagData' for the flag.
+--
+-- Throws:
+--
+--    * An exception if an error message is returned from the 'invalidFlag'
+--    function.
 flagToData :: Flag a -> FlagData
-flagToData flag@(Flag name help flagConf) =
-    case invalidFlag flag of
-        Just err -> error err
-        _        -> (flagData, aliasMap, [])
+flagToData (Flag name help flagConf) = (flagData, aliasMap, [])
   where flagData = Map.singleton name (help, flagDConf)
         aliasMap = Map.fromList [(s, name) | s <- flagAlias flagConf]
+        flagDConf = map fConfToFDataConf flagConf
 
-        flagDConf = map aux flagConf
-        aux (FlagConf_DefaultIf _ p) = FlagDataConf_HasDefault p
-        aux (FlagConf_RequiredIf p) = FlagDataConf_RequiredIf p
-        aux (FlagConf_EmptyValueIs _) = FlagDataConf_HasEmptyValue
-        aux (FlagConf_Parser p) = FlagDataConf_Validator (isJust . p)
-        aux (FlagConf_Alias as) = FlagDataConf_Alias as
-        aux (FlagConf_DefaultOperation op) = FlagDataConf_DefaultOperation op
+fConfToFDataConf :: FlagConf a -> FlagDataConf
+fConfToFDataConf conf = case conf of
+    (FlagConf_DefaultIf _ p) -> FlagDataConf_HasDefault p
+    (FlagConf_RequiredIf p) -> FlagDataConf_RequiredIf p
+    (FlagConf_EmptyValueIs _) -> FlagDataConf_HasEmptyValue
+    (FlagConf_Parser p) -> FlagDataConf_Validator (isJust . p)
+    (FlagConf_Alias as) -> FlagDataConf_Alias as
+    (FlagConf_DefaultOperation op) -> FlagDataConf_DefaultOperation op
 
-invalidFlag :: Flag a -> Maybe String
-invalidFlag (Flag n _ fc) = case invalidFlags of
+invalidFlag :: (String, [FlagConf a]) -> Maybe String
+invalidFlag (n, fc) = case invalidFlags of
     []    -> Nothing
     flags -> Just $ "Error: The following flags names are invalid "
                  ++ show flags
+                 ++ ". A valid flag name consist of a letter followed "
+                 ++ " by letters, numbers, dash or undercore."
   where invalidFlags = [x | x <- n:flagAlias fc, invalidFlagName x]
 
 invalidFlagName :: String -> Bool
@@ -1159,12 +1277,31 @@ defaultIfValidator fdc fr (FlagMissing name)
   | otherwise = ValidationSuccess
 defaultIfValidator _ _ _ = ValidationSuccess
 
+-- | Defines a flag.
+--
+-- A define flag consist of a name, a helptext and a list of flag
+-- configurations.
+--
+-- The name is the flag identifier, it must be unique among other defined
+-- flags and it must follow this pattern:
+--
+-- Arguments:
+--
+--    *@(name, helptext, configurations)@: A triple containing the flag name,
+--    the helptext and the flag configurations.
+--
+-- Returns:
+--
+--    * A flag.
 make :: (String, String, [FlagConf a]) -> Flag a
-make (name, help, flagConf) = if hasParser
-                              then Flag name help flagConf
-                              else error $ flagError name errorMsg
-  where hasParser = not $ null [True | (FlagConf_Parser _) <- flagConf]
-        errorMsg = "Flag parser was not provided"
+make (name, help, flagConf) = case anyErrorWithFlag of
+                                  Nothing  -> Flag name help flagConf
+                                  Just err -> error err
+  where anyErrorWithFlag = listToMaybe $ catMaybes [validParser, validName]
+        validParser = if null [True | (FlagConf_Parser _) <- flagConf]
+                      then Just (flagError name "Flag parser was not provided")
+                      else Nothing
+        validName = invalidFlag (name, flagConf)
 
 defaultDisplayHelp :: String -> [(String, [String], String)] -> IO ()
 defaultDisplayHelp desc flags = putStrLn helpText

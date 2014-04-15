@@ -58,11 +58,14 @@ assertArgsEquals (TestProcessError errs) _args =
 assertArgsEquals (TestProcessSuccess (_results, args)) expected = assertEqual "" expected args
 
 
-assertFlagDataException :: HSO.FlagData -> String -> Assertion
-assertFlagDataException fd msg = do result <- try (evaluate fd) :: IO (Either SomeException HSO.FlagData)
-                                    case result of
-                                        Left err -> assertEqual "" msg (show err)
-                                        Right _ -> fail "Expected exception but no exception occurred"
+assertException :: a -> String -> Assertion
+assertException expr msg = do result <- evaluate' expr
+                              case result of
+                                  Left err -> assertEqual "" msg (show err)
+                                  Right _ -> fail "Expected exception but no exception occurred"
+
+evaluate' ::  a -> IO (Either SomeException a)
+evaluate' flag = try (evaluate flag)
 
 process :: HSO.FlagData -> String -> IO TestProcessResult
 process fd input = do result <- HSO.process fd (words input)

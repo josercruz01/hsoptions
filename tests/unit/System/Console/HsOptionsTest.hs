@@ -52,6 +52,7 @@ tests = [
     testFlagAliasIncorrectValue,
     testFlagDeclaredWithInvalidName,
     testFlagDeclaredWithInvalidName2,
+    testFlagNameIsUnique,
     testIncludeSingleFile,
     testConfFileComments,
     testConfFileHierarchy,
@@ -387,15 +388,24 @@ testFlagAliasIncorrectValue = "Valid flag alias with invalid value should report
 
 testFlagDeclaredWithInvalidName :: UnitTest
 testFlagDeclaredWithInvalidName  = "A flag defined on the code with invalid name should report error" `unitTest`
-  do let flagData1 = makeFlagData [f2d invalidFlag1]
-         errorMsg = "Error: The following flags names are invalid [\"1dry_run\"]"
-     assertFlagDataException flagData1 errorMsg
+  do let errorMsg = "Error: The following flags names are invalid [\"1dry_run\"]"
+                 ++ ". A valid flag name consist of a letter followed  by letters"
+                 ++ ", numbers, dash or undercore."
+     assertException invalidFlag1 errorMsg
 
 testFlagDeclaredWithInvalidName2 :: UnitTest
 testFlagDeclaredWithInvalidName2  = "A flag defined on the code with invalid name should report error" `unitTest`
-  do let flagData1 = makeFlagData [f2d invalidFlag2]
-         errorMsg = "Error: The following flags names are invalid [\"dry_run \"]"
-     assertFlagDataException flagData1 errorMsg
+  do let errorMsg = "Error: The following flags names are invalid [\"dry_run \"]"
+                 ++ ". A valid flag name consist of a letter followed  by letters"
+                 ++ ", numbers, dash or undercore."
+     assertException invalidFlag2 errorMsg
+
+testFlagNameIsUnique :: UnitTest
+testFlagNameIsUnique = "A flag name must be unique" `unitTest`
+  do let flagData = makeFlagData [f2d userId, f2d userId]
+         errorMsg = "Duplicate flag names: The following flag names are "
+                 ++ "duplicated in the code [\"user_id\",\"u\",\"uid\"]"
+     assertException flagData errorMsg
 
 testIncludeSingleFile :: UnitTest
 testIncludeSingleFile = "Include single file should workd correctly" `unitTest`
