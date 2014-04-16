@@ -34,13 +34,13 @@ flagData = combine [
             Greeter.flagData,
 
             -- Global validation
-            validate (\fr -> if get fr profileMemory && get fr profileDisk 
+            validate (\fr -> if get fr profileMemory && get fr profileDisk
                              then Just "'--profile_memory' and '--profile_disk' can't be on at the same time"
                              else Nothing)
            ]
 
 main_success :: ProcessResults -> IO ()
-main_success (flags, argsResults) = 
+main_success (flags, argsResults) =
    do let userId = flags `get` userIdFlag -- get userId
           db = flags `get` database       -- get database
 
@@ -57,8 +57,8 @@ main_success (flags, argsResults) =
 
 
 main :: IO ()
-main = processMain description 
+main = processMain description
                    flagData
-                   main_success 
+                   main_success
                    defaultDisplayErrors
                    defaultDisplayHelp

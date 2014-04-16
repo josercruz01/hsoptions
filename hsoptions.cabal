@@ -97,6 +97,9 @@ library
   exposed-modules:
     System.Console.HsOptions
     System.Console.HsOptions.Parser
+    System.Console.HsOptions.ParserCore
+    System.Console.HsOptions.Types
+    System.Console.HsOptions.Core
   -- other-modules:
   build-depends:     base == 4.6.*,
                      containers == 0.5.*,
