@@ -1479,6 +1479,26 @@ ifIsJust val predicate = case val of
                             Nothing -> True
                             Just a  -> predicate a
 
+-- | Pipeline function that modifies the results by inserting all missing
+-- flags into it.
+--
+-- At this point the flags have been processed by the parser, so the
+-- 'FlagResults' will have only the flags sent by the user. The remaining
+-- flags are inserted into the 'FlagResults' with a 'FlagMissing' value.
+--
+-- This is useful so that future pipeline functions don\'t need to worry
+-- about any flag not present in the flag results, as all defined flags
+-- will be there, and missing flags will be there with the 'FlagMissing'
+-- value.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--
+--    * The modified @flag_results@.
 addMissingFlags :: PipelineFunction
 addMissingFlags ((fd, aliasMap, _), flags) = ([], flags')
   where flags' = flags `Map.union` Map.fromList missingFlags'
@@ -1491,6 +1511,19 @@ addMissingFlags ((fd, aliasMap, _), flags) = ([], flags')
                        ]
         missingFlags' = map (\name -> (name, FlagMissing name)) missingFlags
 
+-- | Pipeline function that checks if any unknown flag was sent by the user.
+--
+-- If a flag exists in the @flag_results@ that does not exist in the
+-- @flag_data@ then an error is returned.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--
+--    * An error if an unknown flag is found.
 validateUnknownFlags :: PipelineFunction
 validateUnknownFlags ((fd, aliasMap, _), flags) = (errors, flags)
   where inputFlags = Map.keys flags
@@ -1500,6 +1533,17 @@ validateUnknownFlags ((fd, aliasMap, _), flags) = (errors, flags)
         errorMsg = "Unkown flag is not defined in the code"
         flagUnkownError name = flagError name errorMsg
 
+-- | Pipeline function that runs the 'checkValidator'  on all the
+-- define flags on @flag_data@.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--
+--    * An error if the flag validator fails.
 validateFlagParsers :: PipelineFunction
 validateFlagParsers ((fd, _, _), flags) =
     (mapMaybe aux (Map.toList fd), flags)
@@ -1508,6 +1552,16 @@ validateFlagParsers ((fd, _, _), flags) =
             _                   -> Nothing
           where value = fromJust (Map.lookup name flags)
 
+-- | Pipeline function that runs the 'requiredIfValidator'  on all the
+-- define flags on @flag_data@.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--    * An error if the flag is required.
 validateRequiredIf :: PipelineFunction
 validateRequiredIf ((fd, _, _), flags) = (mapMaybe aux (Map.toList fd), flags)
   where aux (name, (_, flagDataConf)) =
@@ -1516,6 +1570,16 @@ validateRequiredIf ((fd, _, _), flags) = (mapMaybe aux (Map.toList fd), flags)
                 _                   -> Nothing
           where value = fromJust (Map.lookup name flags)
 
+-- | Pipeline function that runs the 'defaultIfValidator'  on all the
+-- define flags on @flag_data@.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--    * An error if the flag is required.
 validateDependentDefault :: PipelineFunction
 validateDependentDefault ((fd, _, _), flags) =
     (mapMaybe aux (Map.toList fd), flags)
@@ -1525,6 +1589,16 @@ validateDependentDefault ((fd, _, _), flags) =
                 _                   -> Nothing
           where value = fromJust (Map.lookup name flags)
 
+-- | Pipeline function that runs all the global rules defined in the
+-- @flag_data@.
+--
+-- Arguments:
+--
+--    *@(flag_data, flag_results)@: the flag data and the current flag
+--    results.
+--
+-- Returns:
+--    * An error if any validation rules fails.
 validateGlobalRules :: PipelineFunction
 validateGlobalRules ((_, _, gr), flags) = (flagErrs, flags)
   where errs = mapMaybe (\ r -> r flags) gr

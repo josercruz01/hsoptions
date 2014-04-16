@@ -218,19 +218,42 @@ data FlagDataConf =
     -- | Exactly the same as 'FlagConf_DefaultOperation'
   | FlagDataConf_DefaultOperation OperationToken
 
-data OperationToken = OperationTokenAssign
-                    | OperationTokenAppend
-                    | OperationTokenAppend'
-                    | OperationTokenPrepend
-                    | OperationTokenPrepend'
-                    deriving (Eq)
+-- | Data types for the flag operations
+data OperationToken =
+    -- Assign operation for a flag (=).
+    OperationTokenAssign
 
-data FlagValueToken = FlagValueTokenEmpty
-                    | FlagValueToken String
+    -- Append operation for a flag (+=).
+  | OperationTokenAppend
 
-data Token = FlagToken String OperationToken FlagValueToken
-           | ArgToken String
+    -- Append' operation for a flag (+=!).
+  | OperationTokenAppend'
 
+    -- Prepend' operation for a flag (=+).
+  | OperationTokenPrepend
+
+    -- Prepend' operation for a flag (=+!).
+  | OperationTokenPrepend'
+  deriving (Eq)
+
+-- | Data type that represents the value for a flag when parsed from the
+-- input stream.
+data FlagValueToken =
+    -- Type taken when the flag value was not provided.
+    FlagValueTokenEmpty
+
+    -- Type taken when the flag value was provided.
+  | FlagValueToken String
+
+-- |  Data type that represents a flag stream using tokens.
+data Token =
+    -- | Token for a flag. Contains name, operation and value.
+    FlagToken String OperationToken FlagValueToken
+
+    -- | Token for a positional argument. Contains the value of the argument.
+  | ArgToken String
+
+-- | Type that contains a map from flag name to default flag operation.
 type DefaultOp = Map.Map String OperationToken
 
 -- | Making 'FlagError' an instance of 'Show'
