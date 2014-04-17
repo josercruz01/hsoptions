@@ -50,8 +50,8 @@ Table of contents
 - [Install](#install)
 - [Examples](#examples)
 - [API](#api)
-    - [Creating streams](#creating-streams)
-    - [Bacon.fromBinder for custom streams](#baconfrombinder-for-custom-streams)
+    - [Defining flags](#defining-flags)
+    - [Process flags](#process-flags)
 - [Build](#build)
 
 Install
