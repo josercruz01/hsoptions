@@ -122,7 +122,7 @@ notFlag = do spaces
                         spaceOrEof
                         return c1
 
--- | Parses a quoteod string using the @character@ for quotes.
+-- | Parses a quoted string using the @character@ for quotes.
 --
 -- Arguments:
 --
@@ -181,7 +181,7 @@ parseInput' defaultOp = parse (manyToken defaultOp ) "Top level parse error"
 -- | Parses the flags from the input stream of characters to a stream of
 -- tokens.
 --
--- Based on the systax of the @flags input@ this parser should not fail.
+-- Based on the syntax of the @flags input@ this parser should not fail.
 -- If there is any kind of errors while parsing an exception is thrown.
 --
 -- Arguments:
@@ -196,7 +196,7 @@ parseInput' defaultOp = parse (manyToken defaultOp ) "Top level parse error"
 --
 -- Throws:
 --
---    * An exception if some error with the parser occurrs.
+--    * An exception if some error with the parser occurs.
 parseInput :: DefaultOp -> String -> [Token]
 parseInput defaultOp input = case parseInput' defaultOp input of
                                  Left err     -> error (show err)

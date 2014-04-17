@@ -1,4 +1,5 @@
 #!/bin/sh
 
 hlint -c src tests
+cabal haddock
 cabal test --show-details=always

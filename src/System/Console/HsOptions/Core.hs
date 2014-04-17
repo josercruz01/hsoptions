@@ -72,7 +72,7 @@ reservedWords :: [String]
 reservedWords =   uncurry (:) usingFileKw
                ++ uncurry (:) helpKw
 
--- | Creates a flag configuration that maks the flag as optional.
+-- | Creates a flag configuration that makes the flag as optional.
 --
 -- Since the flag is optional then it's type must
 -- bet @'Flag' ('Maybe' a)@, so that it can be 'Nothing' if the flag was not
@@ -328,7 +328,7 @@ assign = OperationTokenAssign
 -- If the flag argument is of type 'FlagValue' then the original parser
 -- is used.
 --
--- It is a covenient way to reuse current parsers, like 'intParser', without
+-- It is a convenient way to reuse current parsers, like 'intParser', without
 -- having to redefine them. For instance \"'intParser'\" is of type
 -- @'FlagArgument' -> ('Maybe' 'Int')@, but \"@toMaybeParser intParser@\" is of
 -- type @'FlagArgument' -> ('Maybe' ('Maybe' 'Int'))@.
@@ -1190,7 +1190,7 @@ mkDefaultOp (x:xs) = Map.singleton name defaultOp `Map.union` defaultOps
 --
 -- Arguments:
 --
---    *@flag_data@: a set of all the flags to proccess.
+--    *@flag_data@: a set of all the flags to process.
 --
 --    *@input_stream@: the command line input stream.
 --
@@ -1233,7 +1233,7 @@ process fd args = do result <- tokenize ([], fd) (unwords args)
 --
 -- Arguments:
 --
---    *@flag_data@: a set of all the flags to proccess.
+--    *@flag_data@: a set of all the flags to process.
 --
 --    *@tokenized_input_stream@: the complete input stream after tokenized.
 --
