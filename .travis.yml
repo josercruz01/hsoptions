@@ -1,3 +1,0 @@
-language: haskell
-script:
-    - cabal install --enable-tests
