@@ -61,7 +61,7 @@ Table of contents
     - [Default value](#default-value)
     - [Common configurations](#common-configurations)
     - [Flag alias](#flag-alias)
-    - [Dependent defaults](#dependent-defaults)
+    - [Dependent defaults]
     - [Optionally required](#optionally-required)
     - [Global validation](#global-validation)
     - [Flag parsers](#flag-parsers)
@@ -317,24 +317,24 @@ This is the expected behavior when getting the flag value:
     $ runhaskell Program.hs --app_id = 123 --db = local
     database: Just "local"
     app_id: 123
-    
+
 Configuration files
 =====
 
-Flags can be processed not only from command-line input, but also from configuration text 
+Flags can be processed not only from command-line input, but also from configuration text
 files. These text files are included at any point in the command-line stream by using the
 special flag `--usingFile <filename>`.
 
-When the flag processor encounters a `usingFile` it reads the content of the file and 
+When the flag processor encounters a `usingFile` it reads the content of the file and
 runs the processor again with this content, consuming the `usingFile` flag and replacing
 it with all the new flags found inside the configuration file.
 
-A configuration file can itself include other configuration files as well, by using the 
-`usingFile` flag inside the file, so a tree of files can be created (a file can have a 
-parent file, and a grandparent file, or a file can include multiple files to combine 
+A configuration file can itself include other configuration files as well, by using the
+`usingFile` flag inside the file, so a tree of files can be created (a file can have a
+parent file, and a grandparent file, or a file can include multiple files to combine
 them together).
 
-If there is any kind of error while reading the file, or there is a syntax error inside 
+If there is any kind of error while reading the file, or there is a syntax error inside
 the file then that error is reported to the user.
 
 This is an example of a configuration file that has comments, and that includes two more
@@ -386,7 +386,7 @@ args: ["superman", "jack","jill","batman", "robin"]
 
 ... as you can observe `superman` and `robin` are respectively at the start and end
 of the positional arguments, that is because first `superman` is found in the input stream,
-then the `usingFile combined.conf` which gets evaluated and parsed, and when this is 
+then the `usingFile combined.conf` which gets evaluated and parsed, and when this is
 complete then the processor moves to `robin` which is captured as the last positional
 argument.
 
@@ -405,10 +405,10 @@ Default value
 =====
 
 There is two types of default flag values, a default value when the flag was not provided
-by the user, and another default value for when the user provided the flag but not the 
+by the user, and another default value for when the user provided the flag but not the
 flag value. The flag configurations are `defaultIs` and `emptyValueIs`.
 
-A default value can be configured for a flag by using the `defaultIs` flag configuration. It takes the value that the flag will have in case the flag is not provided by the user. 
+A default value can be configured for a flag by using the `defaultIs` flag configuration. It takes the value that the flag will have in case the flag is not provided by the user.
 
 Example:
 
@@ -419,9 +419,9 @@ database = make ("database", "the db connection", [ parser stringParser
 
 So for example:
 
-        $ runhaskell Program.hs 
+        $ runhaskell Program.hs
         database: local.sqlite
-        
+
 ... if you set the value then the default is ignored:
 
         $ runhaskell Program.hs --database production.sqlite
@@ -435,8 +435,8 @@ occur, as the system assumes you meant to set a value to the flag:
         Error with flag '--database': Flag value was not provided
 
 ... if you want to add a default value for the flag value is empty use the `emptyValueIs` flag
-configuration:        
-   
+configuration:
+
 ```haskell
 database = make ("database", "the db connection", [ parser stringParser
                                                   , defaultIs "local.sqlite",
@@ -446,9 +446,9 @@ database = make ("database", "the db connection", [ parser stringParser
         $ runhaskell Program.hs --database
         database: prod.sqlite
 
-The combination of `defaultIs` and `emptyValueIs` makes it possible to define flags such as 
-booleans. So we could set up a flag such as `--debug` (`Bool`) that will take the value 
-`False` if missing and will take the value `True` if the user sent `--debug` without him 
+The combination of `defaultIs` and `emptyValueIs` makes it possible to define flags such as
+booleans. So we could set up a flag such as `--debug` (`Bool`) that will take the value
+`False` if missing and will take the value `True` if the user sent `--debug` without him
 having to say `--debug = True`.
 
 Common configurations
@@ -458,7 +458,7 @@ can be put into a function for code reuse.
 
 ### Boolean flag
 
-A default behavior for boolean flag is that if the flag is missing then it's value is 
+A default behavior for boolean flag is that if the flag is missing then it's value is
 `False` and if the flag is present, even with a missing flag value, then it's value is
 `True`.
 
@@ -493,7 +493,7 @@ Flag alias
 =====
 Creates a flag configuration for the aliases of the flag.
 
-Sets multiple alias for a single flag. `(--user_id alias: ["u", "uid")`. These 
+Sets multiple alias for a single flag. `(--user_id alias: ["u", "uid")`. These
 aliases can be used to set the flag value, so `--user_id = 8` is equivalent to
 `-u = 8`.
 
@@ -506,6 +506,9 @@ user_id = make ("user_id", "the id", [parser intParser, aliasIs ["u", "uid"]])
 Dependent defaults
 =====
 
+```
+WORK IN PROGRESS
+```
 
 
 Optionally required
@@ -522,20 +525,20 @@ value:
 log_memory = make ( "log_memory"
                   , "if set to true the memory usage will be logged"
                   , boolFlag)
-                  
-                  
+
+
 log_output = make ( "log_output"
                   , "where to save the log. required if 'log_memory' is true"
                   , [ maybeParser stringParser
                     , requiredIf (\ flags -> flags `get` log_memory == True)
                     ]
                   )
-```             
+```
 
 ... after the flags are processed then the optionally required condition is checked. If
 the configured predicate returns true an error is reported to the user:
 
-        $ runhaskell Program.hs 
+        $ runhaskell Program.hs
         log_memory: False
         log_output: Nothing
 
@@ -556,11 +559,11 @@ will be required:
 Global validation
 =====
 
-A global validation rule is a function that will be evaluated with the `FlagResults` 
+A global validation rule is a function that will be evaluated with the `FlagResults`
 after the processing stage and will determine if the current state is valid.
 
 It is the last stage of flag processing. If there is a validation error then this error
-is reported to the user. This validation is done by using the `validate` function that 
+is reported to the user. This validation is done by using the `validate` function that
 takes a function that returns a `Maybe String`, `Nothing` being a passing result and `Just
 err` being failing result with an `err` error message.
 
@@ -616,8 +619,8 @@ Used to convert an existent parser to an optional parser.
 
     intPaser :: FlagArgument -> Int
     toMaybeParser intParser :: FlagArgument -> Maybe Int
-    
-If the flag was missing or the flag value was missing then the new parser will 
+
+If the flag was missing or the flag value was missing then the new parser will
 return `Nothing`, otherwise the wrapped parser is called.
 
 It comes handy when you create a flag of type `Maybe a` and you want to use one of the
@@ -628,8 +631,8 @@ user_id :: Flag (Maybe Int)
 user_id = make ("user_id", "help", [parser (toMaybeParser intParser)])
 ```
 
-Since this seems to be a common pattern the `maybeParser` method was created that 
-combines the `parser` function with the `toMaybeParser`. The previous example is 
+Since this seems to be a common pattern the `maybeParser` method was created that
+combines the `parser` function with the `toMaybeParser`. The previous example is
 equivalent to:
 
 ```haskell
@@ -641,19 +644,19 @@ user_id = make ("user_id", "help", [maybeParser intParser])
 Flag operations
 =====
 
-Flag operations allows the user to set the value of a flag based on the previous value set. 
+Flag operations allows the user to set the value of a flag based on the previous value set.
 This is useful in situations where configuration files are used, so that a child configuration
 file can extend the value of a flag set in a parent configuration file.
 
-Operations are specified when setting a value for a flag. This is the syntax to set a flag: 
-`--flag_name [operation] flag_value`. If the `[operation]` is not set then the `assign (=)` 
+Operations are specified when setting a value for a flag. This is the syntax to set a flag:
+`--flag_name [operation] flag_value`. If the `[operation]` is not set then the `assign (=)`
 operation is implied.
 
 
 ### Assign
 
-This is the default operation. Sets the value of the flag, overwriting any previous value if 
-there was any. This is the default operation unless the user 
+This is the default operation. Sets the value of the flag, overwriting any previous value if
+there was any. This is the default operation unless the user
 [changed it](#change-flag-default-operation) in the flag configuration.
 
 Example:
@@ -678,10 +681,10 @@ Example:
 
 
 ### Append
-It's an specification of the `$(inherit)` keyword to append the current value of the flag to 
+It's an specification of the `$(inherit)` keyword to append the current value of the flag to
 the previous. There are two ways to append, using the `+=` symbol or the `+=!` symbol.
 
-They are the same except that `+=` puts a space between previous value and current value (if 
+They are the same except that `+=` puts a space between previous value and current value (if
 there is a previous value for the flag).
 
 They are equivalent to:
@@ -693,18 +696,18 @@ Example `(+=)`:
 
         $ runhaskell Program.hs --warning = "1 2" --warning += "3"
         warning: "1 2 3"
-        
+
 Example `(+=!)`:
 
         $ runhaskell Program.hs --warning = "warn-1,2" --warning +=! ",3"
         warning: "warn-1,2,3"
- 
+
 
 ### Prepend
-It's an specification of the `$(inherit)` keyword to prepend the current value of the flag to 
+It's an specification of the `$(inherit)` keyword to prepend the current value of the flag to
 the previous. There are two ways to prepend, using the `=+` symbol or the `=+!` symbol.
 
-They are the same except that `=+` puts a space between previous value and current value (if 
+They are the same except that `=+` puts a space between previous value and current value (if
 there is a previous value for the flag).
 
 They are equivalent to:
@@ -716,18 +719,18 @@ Example `(=+)`:
 
         $ runhaskell Program.hs --warning = "1 2" --warning =+ "0"
         warning: "0 1 2"
-        
+
 Example `(=+!)`:
 
         $ runhaskell Program.hs --warning = "warn-1,warn-2" --warning =+! "warn-0,"
         warning: "warn-0,warn-1,warn-2"
- 
+
 ### Change flag default operation
 
 By default a flag's default operation is the `assign (=)` operation. So if the user sends
 a flag and it's value without explicitly using an operation this is the operation used.
 
-Now if you want to change this behavior for a given flag you can do so by using the 
+Now if you want to change this behavior for a given flag you can do so by using the
 `operation` flag configuration. This takes an operation as an argument and sets this
 as the default operation for the flag:
 
@@ -739,7 +742,7 @@ Now if you run the program like this:
 
         $ runhaskell Program.hs --warn 1 --warn 2 --warn 3
         warn: "1 2 3"
-        
+
 You can overwrite this default if you specify the operation in the command line:
 
         $ runhaskell Program.hs --warn 1 --warn 2 --warn 3 --warn = 0
