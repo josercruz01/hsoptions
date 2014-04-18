@@ -62,7 +62,7 @@ Table of contents
     - [Flag alias](#flag-alias)
     - [Dependent defaults](#dependent-defaults)
     - [Optionally required](#optionally-required)
-    - [Global validation]
+    - [Global validation](#global-validation)
     - [Flag parsers](#flag-parsers)
         - [Parsers]
         - [Parser wrappers]
@@ -517,9 +517,26 @@ will be required:
 Global validation
 =====
 
+A global validation rule is a function that will be evaluated with the `FlagResults` 
+after the processing stage and will determine if the current state is valid.
+
+It is the last stage of flag processing. If there is a validation error then this error
+is reported to the user. This validation is done by using the `validate` function that 
+takes a function that returns a `Maybe String`, `Nothing` being a passing result and `Just
+err` being failing result with an `err` error message.
+
+For example:
+
+```haskell
+flagData = combine [ flagToData user_id
+                   , validate (\fr -> if get fr user_id < 0
+                                      then Just "user id negative error"
+                                      else Nothing)
+                   ]
 ```
-WORK IN PROGRESS...
-```
+
+An error will be produces if the application is run with a negative `user_id`.
+
 
 Flag parsers
 =====
