@@ -62,6 +62,9 @@ Table of contents
     - [Dependent defaults](#dependent-defaults)
     - [Optionally required](#optionally-required)
     - [Global validation](#global-validation)
+    - [Flag parsers]
+        - [Parsers]
+        - [Parser wrappers]
     - [Flag operations](#flag-operations)
         - [Assign](#assign)
         - [Inherit keyword](#inherit-keyword)
@@ -441,19 +444,60 @@ database = make ("database", "the db connection", [ parser stringParser
         $ runhaskell Program.hs --database
         database: prod.sqlite
 
+The combination of `defaultIs` and `emptyValueIs` makes it possible to define flags such as 
+booleans. So we could set up a flag such as `--debug` (`Bool`) that will take the value 
+`False` if missing and will take the value `True` if the user sent `--debug` without him 
+having to say `--debug = True`.
+
 Dependent defaults
 =====
 
-```
-WORK IN PROGRESS...
-```
+
 
 Optionally required
 =====
+You can mark a flag optionally required by using the `requiredIf` flag configuration.
 
-```
-WORK IN PROGRESS...
-```
+This flag configuration needs a `predicate` function that given the current `FlagResults`
+returns `True` or `False` depending if the flag should or should not be required.
+
+For example it is useful to make a flag required if another flag was set to a particular
+value:
+
+```haskell
+log_memory = make ( "log_memory"
+                  , "if set to true the memory usage will be logged"
+                  , boolFlag)
+                  
+                  
+log_output = make ( "log_output"
+                  , "where to save the log. required if 'log_memory' is true"
+                  , [ maybeParser stringParser
+                    , requiredIf (\ flags -> flags `get` log_memory == True)
+                    ]
+                  )
+```             
+
+... after the flags are processed then the optionally required condition is checked. If
+the configured predicate returns true an error is reported to the user:
+
+        $ runhaskell Program.hs 
+        log_memory: False
+        log_output: Nothing
+
+... if you send the `log_memory` the conditional predicate will return `True` and the flag
+will be required:
+
+        $ runhaskell Program.hs  --log_memory
+        Some errors occurred:
+        Error with flag '--log_output': Flag is required
+
+... if you send the value for `log_output` then an error should not occur:
+
+        $ runhaskell Program.hs  --log_memory --log_output /tmp/memorylog.tmp
+        log_memory: True
+        log_output: Just "/tmp/memorylog.tmp"
+
 
 Global validation
 =====
