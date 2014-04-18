@@ -3,13 +3,25 @@ HsOptions
 
 HsOptions is a Haskell library that supports command-line flag processing.
 
-It is equivalent to `getOpt()`, but for `Haskell`, and with a lot of neat extra features. Tipically, an application specifies what flags it is expecting from the user -- like `--user_id` or `-file <filepath>` -- somehow in the code, `HsOptions` provides a declarative way to define the flags in the code by using the `make` function.
+It is equivalent to `getOpt()`, but for `Haskell`, and with a lot of neat extra
+features. Tipically, an application specifies what flags it is expecting from
+the user -- like `--user_id` or `-file <filepath>` -- somehow in the code,
+`HsOptions` provides a declarative way to define the flags in the code by using
+the `make` function.
 
-Most flag processing libraries requires all the flags to be defined in a single point, such as the main file, but `HsOptions` allows the flags to be scattered around the code, promoting code reuse and scalability. A module defines the flags it needs and when this module is used in other modules it's flags are handled by `HsOptions`.
+Most flag processing libraries requires all the flags to be defined in a single
+point, such as the main file, but `HsOptions` allows the flags to be scattered
+around the code, promoting code reuse and scalability. A module defines the
+flags it needs and when this module is used in other modules it's flags are
+handled by `HsOptions`.
 
-`HsOptions` is completely functional, specially because no global state is modified. The only `IO` actions performed are to get the command-line arguments and to expand the configuration files.
+`HsOptions` is completely functional, specially because no global state is
+modified. The only `IO` actions performed are to get the command-line arguments
+and to expand the configuration files.
 
-Another important feature of `HsOptions` is that it can process flags from text files as well as from command-line. This feature is available with the use of the special `--usingFile <filename>` flag. 
+Another important feature of `HsOptions` is that it can process flags from text
+files as well as from command-line. This feature is available with the use of
+the special `--usingFile <filename>` flag.
 
 For example:
 
@@ -27,9 +39,12 @@ For example:
     $ runhaskell Program.hs --debug --user_name batman --pretty -f
 
 
-Each configuration file is expanded after it is processed, so it can include more configuration files and create a tree. This is useful to create different environments, like production.conf, dev.conf and qa.conf just to name a few.
+Each configuration file is expanded after it is processed, so it can include
+more configuration files and create a tree. This is useful to create different
+environments, like production.conf, dev.conf and qa.conf just to name a few.
 
-[![Build Status](https://travis-ci.org/josercruz01/hsoptions.svg?branch=master)](https://travis-ci.org/josercruz01/hsoptions)
+[![Build Status](https://travis-ci.org/josercruz01/hsoptions.svg
+?branch=master)](https://travis-ci.org/josercruz01/hsoptions)
 
 Table of contents
 =================
@@ -48,18 +63,22 @@ Table of contents
 Install
 =======
 
-The library depends on cabal ([Install Cabal](http://www.haskell.org/cabal/download.html)).
+The library depends on cabal
+([Install Cabal](http://www.haskell.org/cabal/download.html)).
 
 To install using cabal:
 
     cabal install hsoptions
-    
+
 Examples
 ========
 
-See [Examples](https://github.com/josercruz01/hsoptions/tree/master/examples) for more examples.
+See [Examples](https://github.com/josercruz01/hsoptions/tree
+/master/examples) for more examples.
 
-This program defines two flags (`user_name` of type `String` and `age` of type `Int`) and in the `main` function prints the name and the age plus 5. It also adds the alias `u` to the flag `user_name`.:  
+This program defines two flags (`user_name` of type `String` and `age` of type
+`Int`) and in the `main` function prints the name and the age plus 5. It also
+adds the alias `u` to the flag `user_name`.
 
 ```haskell
 -- Program.hs
@@ -120,7 +139,10 @@ API
 
 Defining flags
 ----------------
-A flag is defined using the `make` function. It takes the name of the flag, the help text and the parser. The parser specified how to parse the string value of the flag to the correct type. A set of default parsers are provided in the library for common types.
+A flag is defined using the `make` function. It takes the name of the flag, the
+help text and the parser. The parser specified how to parse the string value of
+the flag to the correct type. A set of default parsers are provided in the
+library for common types.
 
 To define a flag of type `Int`:
 
@@ -136,14 +158,19 @@ To define the same flag of type `Maybe Int`:
     age = make ("age", "age of the user", [maybeParser intParser])
 ```
 
-The function `maybeParser` is a wrapper for a parser of any type that converts that parser to a `Maybe` data type, allowing the value to be `Nothing`. This is used mostly for optional flags.
+The function `maybeParser` is a wrapper for a parser of any type that converts
+that parser to a `Maybe` data type, allowing the value to be `Nothing`. This is
+used mostly for optional flags.
 
-Instead of `intParser` the user can specify his custom function to parse the string value to the corresponding flag type. This is useful to allow the user to create flags of any custom type.
+Instead of `intParser` the user can specify his custom function to parse the
+string value to the corresponding flag type. This is useful to allow the user to
+create flags of any custom type.
 
 Process flags
 -----------------------------------
 
-To process the flags the `processMain` function is used. This function serves as a middle man between the real `main` and the flag processing. Takes 5 arguments:
+To process the flags the `processMain` function is used. This function serves as
+a middle man between the real `main` and the flag processing. Takes 5 arguments:
 
 * The description of the program: used when printing the help text.
 * A collection of all the defined flags
@@ -170,27 +197,45 @@ main = processMain "Example program for processMain"
                    successMain
                    defaultDisplayErrors
                    defaultDisplayHelp
-                   
+
 -- new main function
-successMain (flags, args) = putStrLn $ flags `get` name                 
+successMain (flags, args) = putStrLn $ flags `get` name
 ```
 
-In this example, the provided implementations for the failure and the display help callback were used (`defaultDisplayErrors` and `defaultDisplayHelp`), so that we do not need to define how to print errors or how to print help.
+In this example, the provided implementations for the failure and the display
+help callback were used (`defaultDisplayErrors` and `defaultDisplayHelp`), so
+that we do not need to define how to print errors or how to print help.
 
-As mentioned before, if no errors were found then `successMain` function is called. The argument sent is a tuple (`FlagResults`, `ArgsResults`). `FlagResults` is a data structure that can be used to get the flag's value with the `get` function. `ArgResults` is just a list of the non-flag positional arguments.
+As mentioned before, if no errors were found then `successMain` function is
+called. The argument sent is a tuple (`FlagResults`, `ArgsResults`).
+`FlagResults` is a data structure that can be used to get the flag's value with
+the `get` function. `ArgResults` is just a list of the non-flag positional
+arguments.
 
-If there was any kind of errors while processing the flags the `display errors` callback argument is called with the list of `FlagError` as argument. The user can specify a custom function so he handles the argument as he wishes.
+If there was any kind of errors while processing the flags the `display errors`
+callback argument is called with the list of `FlagError` as argument. The user
+can specify a custom function so he handles the argument as he wishes.
 
-The third callback, `display help`, is called when the user sent the specia help flag (`--help` or `-h`). It takes the program description and all the information of the flags as a list of (`flag_name`, `[flag_alias]`, `flag_helptext`). The `defaultDisplayHelp` is a default implementation that prints the helptext in a standard formart, usually this is the way to go unless the user wants to print the helpttext in a custom format.
+The third callback, `display help`, is called when the user sent the specia help
+flag (`--help` or `-h`). It takes the program description and all the
+information of the flags as a list of (`flag_name`, `[flag_alias]`,
+`flag_helptext`). The `defaultDisplayHelp` is a default implementation that
+prints the helptext in a standard formart, usually this is the way to go unless
+the user wants to print the helpttext in a custom format.
 
 Get flag value
 -----------------------------------
 
-A flag value is obtained by using the `get` function. It takes the `FlagResults` and a defined flag as a parameter, and it will look for the value of the flag inside the `FlagResults`. In a way you can think of `FlagResults` as a data structure that can be queried with flags to retrieve flag values.
+A flag value is obtained by using the `get` function. It takes the `FlagResults`
+and a defined flag as a parameter, and it will look for the value of the flag
+inside the `FlagResults`. In a way you can think of `FlagResults` as a data
+structure that can be queried with flags to retrieve flag values.
 
-The `FlagResults` are obtained by processing the flags with the [`processMain`](#process-flags) function.
+The `FlagResults` are obtained by processing the flags with the
+[`processMain`](#process-flags) function.
 
-The return type of `get` is the type of the flag, so if the flag is `Flag Int` then `get` returns an `Int` (so the flag value is typed).
+The return type of `get` is the type of the flag, so if the flag is `Flag Int`
+then `get` returns an `Int` (so the flag value is typed).
 
 For a given flag:
 
@@ -208,12 +253,15 @@ success (flags, args) = do let r = flags `get` repeat
 
 Optional and Required flags
 -----------------------------------
-By default all flags are marked as required. If you want to make an optional flag then two things are required:
+By default all flags are marked as required. If you want to make an optional
+flag then two things are required:
 
-    * First, the type of the flag must be `Flag (Maybe a)`, so that the flag can be `Nothing` if it was not provided and `Just value` if it was.
-    
-    * Second, the flag must be configured using the `isOptional` flag configuration.
-    
+    * First, the type of the flag must be `Flag (Maybe a)`, so that the flag can
+    be `Nothing` if it was not provided and `Just value` if it was.
+
+    * Second, the flag must be configured using the `isOptional` flag
+    configuration.
+
 Example:
 
 ```haskell
@@ -229,7 +277,8 @@ app_id = make ("app_id", "application to run", [parser intParser])
 all_flags = combine [flagToData database, flagToData app_id]
 
 -- main
-main = processMain "Sample" all_flags success defaultDisplayErrors defaultDisplayHelp
+main = processMain "Sample" all_flags success
+                   defaultDisplayErrors defaultDisplayHelp
 
 -- success main
 success (flags, _) = do putStrLn $ "database: " ++ show (flags `get` database)
@@ -265,7 +314,7 @@ Build
 Build from source using `build` (build and run tests):
 
     $ ./build
-    
+
 Or using cabal:
 
     $ cabal build     -- builds the text
