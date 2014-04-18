@@ -114,24 +114,24 @@ failure errs = do putStrLn "Some errors occurred:"
 
 You can run this program in several ways:
 
-  $ runhaskell Program.hs --user_name batman --age 23
-  Hello batman
-  In 5 years you will be 28 years old!
+    $ runhaskell Program.hs --user_name batman --age 23
+    Hello batman
+    In 5 years you will be 28 years old!
 
 ... or:
 
-  $ runhaskell Program.hs --user_name batman --age ten
-  Some errors occurred:
-  Error with flag '--age': Value 'ten' is not valid
+    $ runhaskell Program.hs --user_name batman --age ten
+    Some errors occurred:
+    Error with flag '--age': Value 'ten' is not valid
 
 ... or:
 
-  $ runhaskell Program.hs --help
-  Simple example for HsOptions.
-      --age        the age of the user
-  -u  --user_name  the user name of the app
-      --usingFile  read flags from configuration file
-  -h  --help       show this help
+    $ runhaskell Program.hs --help
+    Simple example for HsOptions.
+        --age        the age of the user
+    -u  --user_name  the user name of the app
+        --usingFile  read flags from configuration file
+    -h  --help       show this help
 
 API
 ===
@@ -286,21 +286,21 @@ success (flags, _) = do putStrLn $ "database: " ++ show (flags `get` database)
 
 This is the expected behavior when getting the flag value:
 
-  $ runprogram Program.hs
-  Errors occurred while parsing flags:
-  Error with flag '--app_id': Flag is required
+    $ runprogram Program.hs
+    Errors occurred while parsing flags:
+    Error with flag '--app_id': Flag is required
 
 ... as you can see only `app_id` is required, but not `database`.
 
-  $ runprogram Program.hs --app_id = 123
-  database: Nothing
-  app_id: 123
+    $ runprogram Program.hs --app_id = 123
+    database: Nothing
+    app_id: 123
 
 ... value for `database` is `Nothing`.
 
-  $ runprogram Program.hs --app_id = 123 --db = local
-  database: Just "local"
-  app_id: 123
+    $ runprogram Program.hs --app_id = 123 --db = local
+    database: Just "local"
+    app_id: 123
 
 Build
 =====
