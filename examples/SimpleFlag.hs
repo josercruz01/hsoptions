@@ -1,30 +1,29 @@
 import System.Console.HsOptions
 
-userName = make ( "user_name"
+flagB = make ( "flagB"
                 , "the user name of the app"
-                , [ parser stringParser
+                , [ parser intParser
+                  ]
+                )
+flagA = make ( "flagA"
+                , "the user name of the app"
+                , [ parser intParser
                   , aliasIs ["u"]
                   ]
                 )
-userAge = make ("age", "the age of the user", [parser intParser])
+database = make ("database", "the age of the user", [parser stringParser])
 
-flagData = combine [flagToData userName, flagToData userAge]
+flagData = combine [flagToData flagB,flagToData flagA, flagToData database]
 
 main :: IO ()
 main = processMain "Simple example for HsOptions."
                    flagData
                    success
-                   failure
+                   defaultDisplayErrors
                    defaultDisplayHelp
 
 success :: ProcessResults -> IO ()
-success (flags, args) = do let nextAge = (flags `get` userAge) + 5
-                           putStrLn ("Hello " ++ flags `get` userName)
-                           putStrLn ("In 5 years you will be " ++
-                                     show nextAge ++
-                                     " years old!")
-
-failure :: [FlagError] -> IO ()
-failure errs = do putStrLn "Some errors occurred:"
-                  mapM_ print errs
-
+success (flags, args) = do putStrLn $ "database: " ++ flags `get` database
+                           putStrLn $ "flagA: " ++ show (flags `get` flagA)
+                           putStrLn $ "flagB: " ++ show (flags `get` flagB)
+                           putStrLn $ "args: " ++ show args

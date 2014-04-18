@@ -57,6 +57,7 @@ Table of contents
     - [Process flags](#process-flags)
     - [Get flag value](#get-flag-value)
     - [Optional and Required flags](#optional-and-required-flags)
+    - [Configuration files](#configuration-files)
     - [Flag operations](#flag-operations)
         - [Assign](#assign)
         - [Inherit keyword](#inherit-keyword)
@@ -307,6 +308,90 @@ This is the expected behavior when getting the flag value:
     database: Just "local"
     app_id: 123
     
+Configuration files
+=====
+
+Flags can be processed not only from command-line input, but also from configuration text 
+files. These text files are included at any point in the command-line stream by using the
+special flag `--usingFile <filename>`.
+
+When the flag processor encounters a `usingFile` it reads the content of the file and 
+runs the processor again with this content, consuming the `usingFile` flag and replacing
+it with all the new flags found inside the configuration file.
+
+A configuration file can itself include other configuration files as well, by using the 
+`usingFile` flag inside the file, so a tree of files can be created (a file can have a 
+parent file, and a grandparent file, or a file can include multiple files to combine 
+them together).
+
+If there is any kind of error while reading the file, or there is a syntax error inside 
+the file then that error is reported to the user.
+
+This is an example of a configuration file that has comments, and that includes two more
+files.
+
+
+```
+# combined.conf
+--database = localdb
+--usingFile = file1.conf
+--usingFile = file2.conf
+jack
+jill
+batman
+```
+
+```
+# file1.conf
+--flagA = 3
+```
+
+
+```
+# file2.conf
+--flagB = 42
+```
+
+So if we have a `Program.hs` that is configured with the flags `database`, `flagA` and `flagB`,
+and that prints the remaining positional arguments, then this is the output of the program
+for the following scenarios:
+
+```
+$ runprogram Program.hs --usingFile combined.conf
+database: localdb
+flagA: 3
+flagB: 42
+args: ["jack","jill","batman"]
+```
+
+We can send more arguments, or modify flags, after or before including the file:
+
+```
+$ runprogram Program.hs superman --usingFile combined.conf robin
+database: localdb
+flagA: 3
+flagB: 42
+args: ["superman", "jack","jill","batman", "robin"]
+```
+
+... as you can observe `superman` and `robin` are respectively at the start and end
+of the positional arguments, that is because first `superman` is found in the input stream,
+then the `usingFile combined.conf` which gets evaluated and parsed, and when this is 
+complete then the processor moves to `robin` which is captured as the last positional
+argument.
+
+Here is another example on how we can override and extend the flags. We will change the
+`flagA` to 1024 and will append the value `.local` to the `database` flag.
+
+```
+$ runprogram Program.hs --usingFile combined.conf --database +=! ".local" --flagA = 1024
+database: localdb.local
+flagA: 1024
+flagB: 42
+args: ["jack","jill","batman"]
+```
+
+
 Flag operations
 =====
 
