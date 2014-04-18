@@ -4,7 +4,7 @@ HsOptions
 HsOptions is a Haskell library that supports command-line flag processing.
 
 It is equivalent to `getOpt()`, but for `Haskell`, and with a lot of neat extra
-features. Tipically, an application specifies what flags it is expecting from
+features. Typically, an application specifies what flags it is expecting from
 the user -- like `--user_id` or `-file <filepath>` -- somehow in the code,
 `HsOptions` provides a declarative way to define the flags in the code by using
 the `make` function.
@@ -57,6 +57,11 @@ Table of contents
     - [Process flags](#process-flags)
     - [Get flag value](#get-flag-value)
     - [Optional and Required flags](#optional-and-required-flags)
+    - [Flag operations](#flag-operations)
+        - [Assign](#assign)
+        - [Inherit keyword](#inherit-keyword)
+        - [Append](#append)
+        - [Prepend](#prepend)
 - [Build](#build)
 
 Install
@@ -215,12 +220,12 @@ If there was any kind of errors while processing the flags the `display errors`
 callback argument is called with the list of `FlagError` as argument. The user
 can specify a custom function so he handles the argument as he wishes.
 
-The third callback, `display help`, is called when the user sent the specia help
+The third callback, `display help`, is called when the user sent the special help
 flag (`--help` or `-h`). It takes the program description and all the
 information of the flags as a list of (`flag_name`, `[flag_alias]`,
 `flag_helptext`). The `defaultDisplayHelp` is a default implementation that
-prints the helptext in a standard formart, usually this is the way to go unless
-the user wants to print the helpttext in a custom format.
+prints the helptext in a standard format, usually this is the way to go unless
+the user wants to print the help text in a custom format.
 
 Get flag value
 -----------------------------------
@@ -301,6 +306,91 @@ This is the expected behavior when getting the flag value:
     $ runprogram Program.hs --app_id = 123 --db = local
     database: Just "local"
     app_id: 123
+    
+Flag operations
+=====
+
+Flag operations allows the user to set the value of a flag based on the previous value set. 
+This is useful in situations where configuration files are used, so that a child configuration
+file can extend the value of a flag set in a parent configuration file.
+
+Operations are specified when setting a value for a flag. This is the syntax to set a flag: 
+`--flag_name [operation] flag_value`. If the `[operation]` is not set then the `assign (=)` 
+operation is implied.
+
+
+### Assign
+
+This is the default operation. Sets the value of the flag, overwriting any previous value if 
+there was any. If the user does not specifies any explicit operation then this is the 
+operation used.
+
+Example:
+
+        $ runhaskell Program.hs --file = "/home/user/" --file = "/tmp"
+        file: "/tmp"
+
+### Inherit keyword
+
+The `$(inherit)` keyword can be used in the flag value and will be expanded to the previous
+value of the flag (or to empty string if no previous value).
+
+Example:
+
+        $ runhaskell Program.hs --file = "/home/user" --file = "$(inherit)/local/tmp"
+        file: "/home/user/local/tmp"
+
+... and with no previous value:
+
+        $ runhaskell Program.hs --file = "$(inherit)/local/tmp"
+        file: "/local/tmp"
+
+
+### Append
+It's an specification of the `$(inherit)` keyword to append the current value of the flag to 
+the previous. There are two ways to append, using the `+=` symbol or the `+=!` symbol.
+
+They are the same except that `+=` puts a space between previous value and current value (if 
+there is a previous value for the flag).
+
+They are equivalent to:
+
+        --file += /local/tmp   <=> --file = "$(inherit) /local/tmp"   -- space in between
+        --file +=! /local/tmp  <=> --file = "$(inherit)/local/tmp"    -- no space in between
+
+Example `(+=)`:
+
+        $ runhaskell Program.hs --warning = "1 2" --warning += "3"
+        warning: "1 2 3"
+        
+Example `(+=!)`:
+
+        $ runhaskell Program.hs --warning = "warn-1,2" --warning +=! ",3"
+        warning: "warn-1,2,3"
+ 
+
+### Prepend
+It's an specification of the `$(inherit)` keyword to prepend the current value of the flag to 
+the previous. There are two ways to append, using the `=+` symbol or the `=+!` symbol.
+
+They are the same except that `=+` puts a space between previous value and current value (if 
+there is a previous value for the flag).
+
+They are equivalent to:
+
+        --file =+ /local/tmp   <=> --file = "/local/tmp $(inherit)"   -- space in between
+        --file =+! /local/tmp  <=> --file = "/local/tmp$(inherit)"    -- no space in between
+
+Example `(=+)`:
+
+        $ runhaskell Program.hs --warning = "1 2" --warning =+ "0"
+        warning: "0 1 2"
+        
+Example `(=+!)`:
+
+        $ runhaskell Program.hs --warning = "warn-1,warn-2" --warning =+! "warn-0,"
+        warning: "warn-0,warn-1,warn-2"
+ 
 
 Build
 =====
