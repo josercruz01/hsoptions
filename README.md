@@ -59,19 +59,20 @@ Table of contents
     - [Optional and Required flags](#optional-and-required-flags)
     - [Configuration files](#configuration-files)
     - [Default value](#default-value)
+    - [Common configurations](#common-configurations)
     - [Flag alias](#flag-alias)
     - [Dependent defaults](#dependent-defaults)
     - [Optionally required](#optionally-required)
     - [Global validation](#global-validation)
     - [Flag parsers](#flag-parsers)
-        - [Parsers]
-        - [Parser wrappers]
+        - [Parsers](#parsers)
+        - [Parser wrappers](#parser-wrappers)
     - [Flag operations](#flag-operations)
         - [Assign](#assign)
         - [Inherit keyword](#inherit-keyword)
         - [Append](#append)
         - [Prepend](#prepend)
-        - [Change flag default operation]
+        - [Change flag default operation](#change-flag-default-operation)
 - [Build](#build)
 
 Install
@@ -450,6 +451,44 @@ booleans. So we could set up a flag such as `--debug` (`Bool`) that will take th
 `False` if missing and will take the value `True` if the user sent `--debug` without him 
 having to say `--debug = True`.
 
+Common configurations
+=====
+There are some common patterns that occurs while configuring flags. These patterns
+can be put into a function for code reuse.
+
+### Boolean flag
+
+A default behavior for boolean flag is that if the flag is missing then it's value is 
+`False` and if the flag is present, even with a missing flag value, then it's value is
+`True`.
+
+For this the `boolFlag` flag configuration was created.
+
+```haskell
+debug = make ("debug", "debug flag", boolFlag])
+```
+
+This is equivalent to:
+
+```haskell
+debug = make ("debug", "debug flag", [ parser boolParser
+                                     , defaultIs False
+                                     , emptyValueIs True
+                                     ])
+```
+
+This is because `boolFlag` is defined as such:
+
+```haskell
+boolFlag :: [FlagConf Bool]
+boolFlag = [ parser boolParser
+           , defaultIs False
+           , emptyValueIs True
+           ]
+]
+```
+
+
 Flag alias
 =====
 Creates a flag configuration for the aliases of the flag.
@@ -540,9 +579,64 @@ An error will be produces if the application is run with a negative `user_id`.
 
 Flag parsers
 =====
+
+Flag parser configurations.
+
 ### Parsers
 
+#### `intParser`
+Parses a flag value to an integer.
+
+#### `floatParser`
+Parses a flag value to a float.
+
+#### `doubleParser`
+Parses a flag value to a double.
+
+#### `charParser`
+Parses a flag value to a char.
+
+#### `stringParser`
+Parses a flag value to a string.
+
+#### `boolParser`
+Parses a flag value to a boolean.
+
+#### `arrayParser`
+Parses a flag value to an array.
+
+
 ### Parser wrappers
+
+### `toMaybeParser`
+
+Takes a `parser` as argument and wraps it so it becomes a `Maybe a` parser.
+
+Used to convert an existent parser to an optional parser.
+
+    intPaser :: FlagArgument -> Int
+    toMaybeParser intParser :: FlagArgument -> Maybe Int
+    
+If the flag was missing or the flag value was missing then the new parser will 
+return `Nothing`, otherwise the wrapped parser is called.
+
+It comes handy when you create a flag of type `Maybe a` and you want to use one of the
+existent parsers:
+
+```haskell
+user_id :: Flag (Maybe Int)
+user_id = make ("user_id", "help", [parser (toMaybeParser intParser)])
+```
+
+Since this seems to be a common pattern the `maybeParser` method was created that 
+combines the `parser` function with the `toMaybeParser`. The previous example is 
+equivalent to:
+
+```haskell
+user_id :: Flag (Maybe Int)
+user_id = make ("user_id", "help", [maybeParser intParser])
+```
+
 
 Flag operations
 =====
@@ -630,10 +724,34 @@ Example `(=+!)`:
  
 ### Change flag default operation
 
-```
-WORK IN PROGRESS...
+By default a flag's default operation is the `assign (=)` operation. So if the user sends
+a flag and it's value without explicitly using an operation this is the operation used.
+
+Now if you want to change this behavior for a given flag you can do so by using the 
+`operation` flag configuration. This takes an operation as an argument and sets this
+as the default operation for the flag:
+
+```haskell
+warning = make ("warn", "warnings to print", [parser stringParser, operation append])
 ```
 
+Now if you run the program like this:
+
+        $ runhaskell Program.hs --warn 1 --warn 2 --warn 3
+        warn: "1 2 3"
+        
+You can overwrite this default if you specify the operation in the command line:
+
+        $ runhaskell Program.hs --warn 1 --warn 2 --warn 3 --warn = 0
+        warn: "0"
+
+The available operations for the flag are these:
+
+        * `assign` (=)
+        * `append` (+=)
+        * `append'` (+=!)
+        * `prepend` (=+)
+        * `prepend'` (=+!)
 Build
 =====
 
