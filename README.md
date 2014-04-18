@@ -297,19 +297,19 @@ success (flags, _) = do putStrLn $ "database: " ++ show (flags `get` database)
 
 This is the expected behavior when getting the flag value:
 
-    $ runprogram Program.hs
+    $ runhaskell Program.hs
     Errors occurred while parsing flags:
     Error with flag '--app_id': Flag is required
 
 ... as you can see only `app_id` is required, but not `database`.
 
-    $ runprogram Program.hs --app_id = 123
+    $ runhaskell Program.hs --app_id = 123
     database: Nothing
     app_id: 123
 
 ... value for `database` is `Nothing`.
 
-    $ runprogram Program.hs --app_id = 123 --db = local
+    $ runhaskell Program.hs --app_id = 123 --db = local
     database: Just "local"
     app_id: 123
     
@@ -362,7 +362,7 @@ and that prints the remaining positional arguments, then this is the output of t
 for the following scenarios:
 
 ```
-$ runprogram Program.hs --usingFile combined.conf
+$ runhaskell Program.hs --usingFile combined.conf
 database: localdb
 flagA: 3
 flagB: 42
@@ -372,7 +372,7 @@ args: ["jack","jill","batman"]
 We can send more arguments, or modify flags, after or before including the file:
 
 ```
-$ runprogram Program.hs superman --usingFile combined.conf robin
+$ runhaskell Program.hs superman --usingFile combined.conf robin
 database: localdb
 flagA: 3
 flagB: 42
@@ -389,7 +389,7 @@ Here is another example on how we can override and extend the flags. We will cha
 `flagA` to 1024 and will append the value `.local` to the `database` flag.
 
 ```
-$ runprogram Program.hs --usingFile combined.conf --database +=! ".local" --flagA = 1024
+$ runhaskell Program.hs --usingFile combined.conf --database +=! ".local" --flagA = 1024
 database: localdb.local
 flagA: 1024
 flagB: 42
@@ -399,11 +399,30 @@ args: ["jack","jill","batman"]
 Default value
 =====
 
-```
-WORK IN PROGRESS...
+A default value can be configured for a flag by using the `defaultIs` flag configuration. It takes the value that the flag will have in case the flag is not provided by the user.
+
+Example:
+
+```haskell
+database = make ("database", "the db connection", [ parser stringParser
+                                                  , defaultIs "local.sqlite"])
 ```
 
+So for example:
 
+        $ runhaskell Program.hs 
+        database: local.sqlite
+        
+... if you set the value then the default is ignored:
+
+        $ runhaskell Program.hs --database production.sqlite
+        database: production.sqlite
+
+... but, it should be noted that if you send the flag, but not it's value, then an error will
+occur, as the system assumes you meant to set a value to the flag:
+
+        $ runhaskell Program.hs --database
+        
 Dependent defaults
 =====
 
