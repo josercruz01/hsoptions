@@ -43,8 +43,7 @@ Each configuration file is expanded after it is processed, so it can include
 more configuration files and create a tree. This is useful to create different
 environments, like production.conf, dev.conf and qa.conf just to name a few.
 
-[![Build Status](https://travis-ci.org/josercruz01/hsoptions.svg
-?branch=master)](https://travis-ci.org/josercruz01/hsoptions)
+[![Build Status](https://travis-ci.org/josercruz01/hsoptions.svg?branch=master)](https://travis-ci.org/josercruz01/hsoptions)
 
 Table of contents
 =================
@@ -73,8 +72,8 @@ To install using cabal:
 Examples
 ========
 
-See [Examples](https://github.com/josercruz01/hsoptions/tree
-/master/examples) for more examples.
+See [Examples](https://github.com/josercruz01/hsoptions/tree/master/examples)
+for more examples.
 
 This program defines two flags (`user_name` of type `String` and `age` of type
 `Int`) and in the `main` function prints the name and the age plus 5. It also
@@ -114,25 +113,29 @@ failure errs = do putStrLn "Some errors occurred:"
 ```
 
 You can run this program in several ways:
+```bash
+$ runhaskell Program.hs --user_name batman --age 23
+Hello batman
+In 5 years you will be 28 years old!
 ```
-    $ runhaskell Program.hs --user_name batman --age 23
-    Hello batman
-    In 5 years you will be 28 years old!
-```
+
 ... or:
+
+```bash
+$ runhaskell Program.hs --user_name batman --age ten
+Some errors occurred:
+Error with flag '--age': Value 'ten' is not valid
 ```
-    $ runhaskell Program.hs --user_name batman --age ten
-    Some errors occurred:
-    Error with flag '--age': Value 'ten' is not valid
-```
+
 ... or:
-```
-    $ runhaskell Program.hs --help
-    Simple example for HsOptions.
-        --age        the age of the user
-    -u  --user_name  the user name of the app
-        --usingFile  read flags from configuration file
-    -h  --help       show this help
+
+```bash
+$ runhaskell Program.hs --help
+Simple example for HsOptions.
+    --age        the age of the user
+-u  --user_name  the user name of the app
+    --usingFile  read flags from configuration file
+-h  --help       show this help
 ```
 API
 ===
@@ -147,15 +150,15 @@ library for common types.
 To define a flag of type `Int`:
 
 ```haskell
-    age :: Flag Int
-    age = make ("age", "age of the user", [parser intParser])
+age :: Flag Int
+age = make ("age", "age of the user", [parser intParser])
 ```
 
 To define the same flag of type `Maybe Int`:
 
 ```haskell
-    age :: Flag (Maybe Int)
-    age = make ("age", "age of the user", [maybeParser intParser])
+age :: Flag (Maybe Int)
+age = make ("age", "age of the user", [maybeParser intParser])
 ```
 
 The function `maybeParser` is a wrapper for a parser of any type that converts
@@ -287,21 +290,21 @@ success (flags, _) = do putStrLn $ "database: " ++ show (flags `get` database)
 
 This is the expected behavior when getting the flag value:
 
-```haskell
+```bash
 $ runprogram Program.hs
 Errors occurred while parsing flags:
 Error with flag '--app_id': Flag is required
 ```
 ... as you can see only `app_id` is required, but not `database`.
 
-```haskell
+```bash
 $ runprogram Program.hs --app_id = 123
 database: Nothing
 app_id: 123
 ```
 ... value for `database` is `Nothing`.
 
-```haskell
+```bash
 $ runprogram Program.hs --app_id = 123 --db = local
 database: Just "local"
 app_id: 123
