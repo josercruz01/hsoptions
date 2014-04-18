@@ -3,7 +3,10 @@ version:             1.0.0.0
 cabal-version:       >= 1.18
 synopsis:            Command line flag parser for Haskell
 description:
-  @HsOptions@ library supports command line flag parsing.
+  HsOptions library supports command line flag parsing.
+  .
+  Too see an user guide and list of features go to
+  <https://github.com/josercruz01/hsoptions#table-of-contents>.
   .
   Flags are declared in the code by using the 'make' function, which takes the
   flag's name, help text and type as arguments.

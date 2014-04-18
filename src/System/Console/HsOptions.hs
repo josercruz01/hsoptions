@@ -8,7 +8,10 @@ Maintainer  :  Jose Raymundo Cruz (jose.r.cruz01@gmail.com)
 Stability   :  stable
 Portability :  portable
 
-@HsOptions@ library supports command line flag parsing.
+HsOptions library supports command line flag parsing.
+
+Too see an user guide and list of features go to
+<https://github.com/josercruz01/hsoptions#table-of-contents>.
 
 Flags are declared in the code by using the 'make' function, which takes the
 flag's name, help text and type as arguments.
