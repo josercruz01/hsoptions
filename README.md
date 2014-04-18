@@ -371,7 +371,7 @@ Example `(+=!)`:
 
 ### Prepend
 It's an specification of the `$(inherit)` keyword to prepend the current value of the flag to 
-the previous. There are two ways to append, using the `=+` symbol or the `=+!` symbol.
+the previous. There are two ways to prepend, using the `=+` symbol or the `=+!` symbol.
 
 They are the same except that `=+` puts a space between previous value and current value (if 
 there is a previous value for the flag).
