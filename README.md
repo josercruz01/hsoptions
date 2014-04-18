@@ -399,7 +399,11 @@ args: ["jack","jill","batman"]
 Default value
 =====
 
-A default value can be configured for a flag by using the `defaultIs` flag configuration. It takes the value that the flag will have in case the flag is not provided by the user.
+There is two types of default flag values, a default value when the flag was not provided
+by the user, and another default value for when the user provided the flag but not the 
+flag value. The flag configurations are `defaultIs` and `emptyValueIs`.
+
+A default value can be configured for a flag by using the `defaultIs` flag configuration. It takes the value that the flag will have in case the flag is not provided by the user. 
 
 Example:
 
@@ -422,7 +426,21 @@ So for example:
 occur, as the system assumes you meant to set a value to the flag:
 
         $ runhaskell Program.hs --database
-        
+        Some errors occurred:
+        Error with flag '--database': Flag value was not provided
+
+... if you want to add a default value for the flag value is empty use the `emptyValueIs` flag
+configuration:        
+   
+```haskell
+database = make ("database", "the db connection", [ parser stringParser
+                                                  , defaultIs "local.sqlite",
+                                                  , emptyValueIs "prod.sqlite"])
+```
+
+        $ runhaskell Program.hs --database
+        database: prod.sqlite
+
 Dependent defaults
 =====
 

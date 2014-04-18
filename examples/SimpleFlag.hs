@@ -1,14 +1,15 @@
 import System.Console.HsOptions
 
-userName = make ( "user_name"
+userName = make ( "database"
                 , "the user name of the app"
                 , [ parser stringParser
-                  , aliasIs ["u"]
+                  , defaultIs "prod.local"
+                  , emptyValueIs "prod.local"
                   ]
                 )
 userAge = make ("age", "the age of the user", [parser intParser])
 
-flagData = combine [flagToData userName, flagToData userAge]
+flagData = combine [flagToData userName]
 
 main :: IO ()
 main = processMain "Simple example for HsOptions."
@@ -18,11 +19,7 @@ main = processMain "Simple example for HsOptions."
                    defaultDisplayHelp
 
 success :: ProcessResults -> IO ()
-success (flags, args) = do let nextAge = (flags `get` userAge) + 5
-                           putStrLn ("Hello " ++ flags `get` userName)
-                           putStrLn ("In 5 years you will be " ++
-                                     show nextAge ++
-                                     " years old!")
+success (flags, args) = putStrLn ("Hello " ++ flags `get` userName)
 
 failure :: [FlagError] -> IO ()
 failure errs = do putStrLn "Some errors occurred:"
