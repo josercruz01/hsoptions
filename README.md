@@ -59,10 +59,11 @@ Table of contents
     - [Optional and Required flags](#optional-and-required-flags)
     - [Configuration files](#configuration-files)
     - [Default value](#default-value)
+    - [Flag alias](#flag-alias)
     - [Dependent defaults](#dependent-defaults)
     - [Optionally required](#optionally-required)
-    - [Global validation](#global-validation)
-    - [Flag parsers]
+    - [Global validation]
+    - [Flag parsers](#flag-parsers)
         - [Parsers]
         - [Parser wrappers]
     - [Flag operations](#flag-operations)
@@ -70,7 +71,7 @@ Table of contents
         - [Inherit keyword](#inherit-keyword)
         - [Append](#append)
         - [Prepend](#prepend)
-        - [Change flag default operation](#change-flag-default-operation)
+        - [Change flag default operation]
 - [Build](#build)
 
 Install
@@ -449,6 +450,20 @@ booleans. So we could set up a flag such as `--debug` (`Bool`) that will take th
 `False` if missing and will take the value `True` if the user sent `--debug` without him 
 having to say `--debug = True`.
 
+Flag alias
+=====
+Creates a flag configuration for the aliases of the flag.
+
+Sets multiple alias for a single flag. `(--user_id alias: ["u", "uid")`. These 
+aliases can be used to set the flag value, so `--user_id = 8` is equivalent to
+`-u = 8`.
+
+They are set using the `aliasIs` flag configuration:
+
+```haskell
+user_id = make ("user_id", "the id", [parser intParser, aliasIs ["u", "uid"]])
+```
+
 Dependent defaults
 =====
 
@@ -505,6 +520,12 @@ Global validation
 ```
 WORK IN PROGRESS...
 ```
+
+Flag parsers
+=====
+### Parsers
+
+### Parser wrappers
 
 Flag operations
 =====
