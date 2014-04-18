@@ -58,11 +58,16 @@ Table of contents
     - [Get flag value](#get-flag-value)
     - [Optional and Required flags](#optional-and-required-flags)
     - [Configuration files](#configuration-files)
+    - [Default value](#default-value)
+    - [Dependent defaults](#dependent-defaults)
+    - [Optionally required](#optionally-required)
+    - [Global validation](#global-validation)
     - [Flag operations](#flag-operations)
         - [Assign](#assign)
         - [Inherit keyword](#inherit-keyword)
         - [Append](#append)
         - [Prepend](#prepend)
+        - [Change flag default operation](#change-flag-default-operation)
 - [Build](#build)
 
 Install
@@ -391,6 +396,34 @@ flagB: 42
 args: ["jack","jill","batman"]
 ```
 
+Default value
+=====
+
+```
+WORK IN PROGRESS...
+```
+
+
+Dependent defaults
+=====
+
+```
+WORK IN PROGRESS...
+```
+
+Optionally required
+=====
+
+```
+WORK IN PROGRESS...
+```
+
+Global validation
+=====
+
+```
+WORK IN PROGRESS...
+```
 
 Flag operations
 =====
@@ -407,8 +440,8 @@ operation is implied.
 ### Assign
 
 This is the default operation. Sets the value of the flag, overwriting any previous value if 
-there was any. If the user does not specifies any explicit operation then this is the 
-operation used.
+there was any. This is the default operation unless the user 
+[changed it](#change-flag-default-operation) in the flag configuration.
 
 Example:
 
@@ -476,6 +509,11 @@ Example `(=+!)`:
         $ runhaskell Program.hs --warning = "warn-1,warn-2" --warning =+! "warn-0,"
         warning: "warn-0,warn-1,warn-2"
  
+### Change flag default operation
+
+```
+WORK IN PROGRESS...
+```
 
 Build
 =====
