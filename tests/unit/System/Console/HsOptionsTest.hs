@@ -59,6 +59,7 @@ tests = [
     testFlagAppendWithNoPrev,
     testFlagAppendWithNoValue,
     testDependentDefaultTrue,
+    testSecondDependentDefaultTrue,
     testDependentDefaultFalse,
     testCircularFileInclusion,
     testRepeatedFileInclusion,
@@ -120,7 +121,9 @@ dryRunOutput :: HSO.Flag String
 dryRunOutput = HSO.make ("dry_run_output",
                          "dryrun_output_helptext",
                          [HSO.parser HSO.stringParser,
-                          HSO.defaultIf "blah_blah" (`HSO.get` dryRun)])
+                          HSO.defaultIf "blah_blah" (`HSO.get` dryRun),
+                          HSO.defaultIf "not_blah" (\ fr -> fr `HSO.get` userName == "second")
+                          ])
 
 {- Test methods -}
 
@@ -444,15 +447,22 @@ testFlagAppendWithNoValue = "Append flag value without value should return empty
 
 testDependentDefaultTrue :: UnitTest
 testDependentDefaultTrue = "A missing flag should have a default value if predicate matches" `unitTest`
-  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput]
-     pr <- process flagData "--dry_run"
+  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput, f2d userName]
+     pr <- process flagData "--dry_run --user_name blah"
      assertFlagValueEquals pr dryRun True
      assertFlagValueEquals pr dryRunOutput "blah_blah"
 
+testSecondDependentDefaultTrue :: UnitTest
+testSecondDependentDefaultTrue = "A missing flag should have a default value if second predicate matches" `unitTest`
+  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput, f2d userName]
+     pr <- process flagData "--dry_run False --user_name second"
+     assertFlagValueEquals pr dryRun False
+     assertFlagValueEquals pr dryRunOutput "not_blah"
+
 testDependentDefaultFalse :: UnitTest
-testDependentDefaultFalse = "A missing flag should be required if default value predicate fails" `unitTest`
-  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput]
-     pr <- process flagData "--dry_run = False"
+testDependentDefaultFalse = "A missing flag should be required if all default value predicate fails" `unitTest`
+  do let flagData = makeFlagData [f2d dryRun, f2d dryRunOutput, f2d userName]
+     pr <- process flagData "--dry_run = False --user_name blah"
      assertError pr "Error with flag '--dry_run_output': Flag is required"
      assertSingleError pr
 

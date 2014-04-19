@@ -128,6 +128,10 @@ defaultIs a = defaultIf a (const True)
 -- This default value will be used when the @predicate@ returns 'True' and the
 -- flag was not provided by the user.
 --
+-- If multiple `defaultIf` configurations are set for the flag then when
+-- getting the default value for the flag the first one that the @predicate@
+-- returns `True` will be used as the default value.
+--
 -- Arguments:
 --
 --    *@default_value@: the dependent default value for the flag.
@@ -416,10 +420,8 @@ get result (Flag name _ conf) = fromJust $ runParser result conf value
 --    * Just @defaultValue@: if the dependent default configuration predicate
 --    returns 'True'
 flagDefault :: FlagResults -> [FlagConf a] -> Maybe a
-flagDefault fr fc =
-    case listToMaybe [ (x, p) | (FlagConf_DefaultIf x p) <- fc] of
-        Just (x, p) -> if p fr then Just x else Nothing
-        _           -> Nothing
+flagDefault fr fc = result
+    where result = listToMaybe [ x | (FlagConf_DefaultIf x p) <- fc, p fr]
 
 -- | Returns the list of flag alias configured for the flag.
 --
@@ -1656,7 +1658,8 @@ defaultIfValidator :: [FlagDataConf]
                    -> FlagArgument
                    -> ValidationResult
 defaultIfValidator fdc fr (FlagMissing name)
-  | flagDGetDefaultIf fdc fr || flagDIsOptional fdc = ValidationSuccess
+  | flagDHasDefaultForResults fdc fr = ValidationSuccess
+  | flagDIsOptional fdc  = ValidationSuccess
   | otherwise = validationError name "Flag is required"
 defaultIfValidator _ _ _ = ValidationSuccess
 
@@ -1819,13 +1822,12 @@ flagDIsRequiredIf fdc fr = case res of
                               Just p  -> p fr
    where res = listToMaybe [ p | (FlagDataConf_RequiredIf p) <- fdc]
 
--- | Returns the default value for a flag if it has one.
+-- | Returns `True` if any of the `FlagDataConf_HasDefault` returns
+-- `True`.
 --
--- First checks if the flag was configured with a default value (with the
--- use of the 'defaultIs' or 'defaultIf' functions).
---
--- If it was, and the default value predicate returns 'True' on the current
--- state then function returns 'True'.
+-- For all the configured default values of the flag (like when
+-- using `defaultIs` or `defaultIf` checks if any of the predicates
+-- returns true for the given `FlagResults`.
 --
 -- Arguments:
 --
@@ -1837,11 +1839,9 @@ flagDIsRequiredIf fdc fr = case res of
 --
 --    * 'True' if there is any default value configured for the flag.
 --    'False' otherwise.
-flagDGetDefaultIf :: [FlagDataConf] -> FlagResults -> Bool
-flagDGetDefaultIf fdc fr = case def of
-                               Just p  -> p fr
-                               Nothing -> False
-   where def = listToMaybe [ p | (FlagDataConf_HasDefault p) <- fdc]
+flagDHasDefaultForResults :: [FlagDataConf] -> FlagResults -> Bool
+flagDHasDefaultForResults fdc fr = result
+   where result = or [ p fr | (FlagDataConf_HasDefault p) <- fdc]
 
 -- | Checks if a dependent default value was configured for the flag, like
 -- when the 'defaultIf' or 'defaultIs' functions are used.
