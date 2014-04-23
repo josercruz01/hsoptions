@@ -10,7 +10,9 @@ userLastName :: Flag String
 userLastName = make ("user_last_name",
                      "the last name of the app. default=wayne if username=bruce",
                      [parser stringParser,
-                      defaultIf "wayne" (\ fr-> get fr userNameFlag == Just "bruce"),
+                      defaultIf (\ fr-> if get fr userNameFlag == Just "bruce"
+                                        then Just "wayne"
+                                        else Nothing),
                       emptyValueIs "",
                       operation append])
 

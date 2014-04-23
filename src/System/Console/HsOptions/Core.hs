@@ -120,31 +120,25 @@ emptyValueIs = FlagConf_EmptyValueIs
 --
 --      >>> defaultIf a (const True)
 defaultIs :: a -> FlagConf a
-defaultIs a = defaultIf a (const True)
+defaultIs a = defaultIf (const $ Just a)
 
 -- | Creates a flag configuration that sets a dependent default value for a
 -- flag.
 --
--- This default value will be used when the @predicate@ returns 'True' and the
--- flag was not provided by the user.
---
--- If multiple `defaultIf` configurations are set for the flag then when
--- getting the default value for the flag the first one that the @predicate@
--- returns `True` will be used as the default value.
+-- This configuration requires a function that takes in a `FlagResults` as
+-- argument and returns a `Maybe a` value, `Nothing` says that there is no
+-- default value and `Just something` says that there is a default value.
 --
 -- Arguments:
 --
---    *@default_value@: the dependent default value for the flag.
---
---    *@predicate@: the predicate that indicates if the default value should
---    be used. If this returns 'True' then this default value will be the
---    flag\'s value if the flag is not provided by the user.
+--    *@default_getter@: function that given a `FlagResults` returns the
+--    default value (`Just`) or `Nothing` if no default value exist;
 --
 -- Returns:
 --
 --    * A flag configuration that sets the dependent default value for the
 --    flag.
-defaultIf :: a -> (FlagResults -> Bool) -> FlagConf a
+defaultIf :: (FlagResults -> Maybe a) -> FlagConf a
 defaultIf = FlagConf_DefaultIf
 
 -- | Creates a flag configuration for the aliases of the flag.
@@ -420,8 +414,8 @@ get result (Flag name _ conf) = fromJust $ runParser result conf value
 --    * Just @defaultValue@: if the dependent default configuration predicate
 --    returns 'True'
 flagDefault :: FlagResults -> [FlagConf a] -> Maybe a
-flagDefault fr fc = result
-    where result = listToMaybe [ x | (FlagConf_DefaultIf x p) <- fc, p fr]
+flagDefault fr fc = fromMaybe Nothing result
+  where result = listToMaybe [ p fr | (FlagConf_DefaultIf p) <- fc]
 
 -- | Returns the list of flag alias configured for the flag.
 --
@@ -625,7 +619,7 @@ flagToData (Flag name help flagConf) = (flagData, aliasMap, [])
 --    * A corresponding 'FlagDataConf' mapped from the input.
 fConfToFDataConf :: FlagConf a -> FlagDataConf
 fConfToFDataConf conf = case conf of
-    (FlagConf_DefaultIf _ p) -> FlagDataConf_HasDefault p
+    (FlagConf_DefaultIf p) -> FlagDataConf_HasDefault (isJust . p)
     (FlagConf_RequiredIf p) -> FlagDataConf_RequiredIf p
     (FlagConf_EmptyValueIs _) -> FlagDataConf_HasEmptyValue
     (FlagConf_Parser p) -> FlagDataConf_Validator (isJust . p)

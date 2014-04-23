@@ -151,8 +151,9 @@ data FlagConf a =
     -- | Function that sets a dependent default value to the flag.
     --
     -- If the flag was not provided by the user this will be the default
-    -- value for the flag if the predicate returns true.
-  | FlagConf_DefaultIf a (FlagResults -> Bool)
+    -- value for the flag if the default value getter function returns
+    -- `Just`.
+  | FlagConf_DefaultIf (FlagResults -> Maybe a)
 
     -- | Function that given a 'FlagResults' constraints the flag to be
     -- either required or not required.

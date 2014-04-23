@@ -121,9 +121,12 @@ dryRunOutput :: HSO.Flag String
 dryRunOutput = HSO.make ("dry_run_output",
                          "dryrun_output_helptext",
                          [HSO.parser HSO.stringParser,
-                          HSO.defaultIf "blah_blah" (`HSO.get` dryRun),
-                          HSO.defaultIf "not_blah" (\ fr -> fr `HSO.get` userName == "second")
-                          ])
+                          HSO.defaultIf (\ fr -> if fr `HSO.get` dryRun
+                                                 then Just "blah_blah"
+                                                 else if fr `HSO.get` userName == "second"
+                                                    then Just "not_blah"
+                                                    else Nothing)
+                        ])
 
 {- Test methods -}
 

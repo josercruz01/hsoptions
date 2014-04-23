@@ -507,19 +507,17 @@ Dependent defaults
 =====
 
 Creates a flag configuration that will define a default value for a flag based
-on a condition. This condition is a function that takes in the current 
-`FlagResults` and returns `True` or `False`.
+on a condition. This condition is a function that takes in the current
+`FlagResults` and returns `Nothing` if the there is no default value or the
+default value (`Just`) if there is one.
 
-If the function returns `True`, and the user did not send the flag in the 
+If the function returns a value, and the user did not send the flag in the
 input stream, then the default value associated with this function is used
 as the default value for the flag.
 
 The dependent default value is configured by using the `defaultIf` function.
-It takes as arguments the default value and the `predicate function` that serves
-as the condition.
-
-If multiple dependent default values are configured for a single flag then the 
-first one that it's predicate returns `True` is used. 
+It takes as arguments the `default value getter function` that given the
+`FlagResults` tries to return a default value.
 
 Example:
 
@@ -529,8 +527,12 @@ userName = make ("user_name", "the user", [parser stringParser])
 movie = make ( "movie"
              , "the movie of the user"
              , [ parser stringParser
-               , defaultIf "matrix" (\ flags -> flags `get` userName == "neo")
-               , defaultIf "batman-begins" (\ flags -> flags `get` userName == "bruce")
+               , defaultIf (\ flags ->
+                     if flags `get` userName == "neo"
+                     then Just "matrix"
+                     else if flags `get` userName == "bruce"
+                          then Just "batman"
+                          else Nothing)
                ]
              )
 ```
@@ -553,7 +555,7 @@ This is the output for different scenarios:
         user_name: neo
         movie: batman-matrix
 
-This configuration is useful in scenarios where a flag's default value depends on 
+This configuration is useful in scenarios where a flag's default value depends on
 the value of on or more flags.
 
 Optionally required

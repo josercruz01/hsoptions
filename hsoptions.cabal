@@ -147,3 +147,10 @@ executable ComplexFlag
   ghc-options:       -Wall
   build-depends:     base == 4.6.*,
                      hsoptions
+
+executable DependentDefaultsDemo
+  main-is:           DependentDefaultsDemo.hs
+  hs-source-dirs:    examples
+  ghc-options:       -Wall
+  build-depends:     base == 4.6.*,
+                     hsoptions
